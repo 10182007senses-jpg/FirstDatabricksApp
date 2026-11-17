@@ -101,9 +101,9 @@ python app.py
 3. アプリのサービスプリンシパルに、テーブルを作る権限を付けます。SQL エディタで実行します。
 
    ```sql
-   CREATE SCHEMA IF NOT EXISTS workspace.taiken_chosei;
+   CREATE SCHEMA IF NOT EXISTS workspace.trial_class_scheduler;
    GRANT USE CATALOG ON CATALOG workspace TO `<アプリのサービスプリンシパルID>`;
-   GRANT ALL PRIVILEGES ON SCHEMA workspace.taiken_chosei TO `<アプリのサービスプリンシパルID>`;
+   GRANT ALL PRIVILEGES ON SCHEMA workspace.trial_class_scheduler TO `<アプリのサービスプリンシパルID>`;
    ```
 
    カタログやスキーマの名前を変える場合は、`app.yaml` の `APP_CATALOG` / `APP_SCHEMA` も直します。

@@ -8,4 +8,4 @@ env:
   - name: APP_CATALOG
     value: workspace
   - name: APP_SCHEMA
-    value: taiken_chosei
+    value: trial_class_scheduler

@@ -119,7 +119,7 @@ def container_diagram() -> None:
           ["フォーム送信時に、回答を", "availability_raw テーブルへ書き込む"], CONTAINER)
     s.cylinder(740, 760, 310, 170, "テーブル群", "Container: Delta Lake / Unity Catalog",
                ["マスター9種・開催枠・月次データ6種、", "フォーム回答・週の目安・設定",
-                "(スキーマ workspace.taiken_chosei)"])
+                "(スキーマ workspace.trial_class_scheduler)"])
     s.box(40, 1040, 340, 110, "LLM", "外部システム: Foundation Model API",
           ["理由文とあいさつ文を整える(なくても動く)"], EXTERNAL)
 

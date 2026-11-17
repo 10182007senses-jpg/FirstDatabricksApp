@@ -91,7 +91,7 @@ def backend_from_env():
     warehouse = os.getenv("DATABRICKS_WAREHOUSE_ID")
     if warehouse:
         return DatabricksBackend(
-            warehouse, os.getenv("APP_CATALOG", "workspace"), os.getenv("APP_SCHEMA", "taiken_chosei"))
+            warehouse, os.getenv("APP_CATALOG", "workspace"), os.getenv("APP_SCHEMA", "trial_class_scheduler"))
     return SqliteBackend(os.getenv("LOCAL_DB_PATH", "local.db"))
 
 

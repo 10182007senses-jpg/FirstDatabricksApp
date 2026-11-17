@@ -10,7 +10,7 @@
  *   DATABRICKS_HOST   例: https://dbc-xxxxxxxx-xxxx.cloud.databricks.com
  *   DATABRICKS_TOKEN  書き込み専用に発行したトークン
  *   WAREHOUSE_ID      SQL ウェアハウスの ID
- *   TABLE             例: workspace.taiken_chosei.availability_raw
+ *   TABLE             例: workspace.trial_class_scheduler.availability_raw
  *   TARGET_YEAR       年の書かれていない選択肢(12/6 など)に補う年。例: 2026
  *
  * トリガー: エディタの「トリガー」から onFormSubmit を「フォーム送信時」に設定します。
