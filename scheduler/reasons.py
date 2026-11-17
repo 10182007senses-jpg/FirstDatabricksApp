@@ -34,7 +34,11 @@ def build_facts(a: Assignment, assignments: list[Assignment], ctx: Context) -> l
     # 教室(R2・R3・R9)
     fit = [r for r in ctx.rooms if not rules.missing_software(ctx, r, a.course_id, slot.day)]
     soft = "・".join(ctx.software.get(s, s) for s in sorted(ctx.course_software.get(a.course_id, ())))
-    if soft and fit == [a.room_id]:
+    lacking = rules.missing_software(ctx, a.room_id, a.course_id, slot.day)
+    if lacking:
+        names = "・".join(ctx.software.get(x, x) for x in lacking)
+        facts.append(f"{ctx.room_name(a.room_id)}教室には{names}が入っていない(R2に違反)")
+    elif soft and fit == [a.room_id]:
         facts.append(f"{soft}が入っている教室は{ctx.room_name(a.room_id)}のみ")
     elif soft:
         facts.append(f"{soft}が入っている教室から選択")
