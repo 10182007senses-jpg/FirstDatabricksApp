@@ -95,7 +95,7 @@ python app.py
    | リソース | キー | 権限 |
    |---|---|---|
    | SQL ウェアハウス | `sql-warehouse` | Can use |
-   | モデルサービングエンドポイント(任意) | `serving-endpoint` | Can query |
+   | 文章生成 AI(任意) | `serving-endpoint` | Unity Catalog のモデルサービス(例:`system.ai.gemma-3-12b`)なら Execute、従来のエンドポイントなら Can query |
 
    エンドポイントを追加しない場合は、`app.yaml` の `SERVING_ENDPOINT` の2行を消してください(理由と連絡文は定型文になります)。
 3. アプリのサービスプリンシパルに、テーブルを作る権限を付けます。SQL エディタで実行します。
@@ -146,5 +146,9 @@ Apps Script を使わない場合は、回答のスプレッドシートを CSV(
 
 - ロジックとデータアクセスは、テスト(SQLite)で確認済みです。
 - 画面は、ローカルでブラウザから一通り操作して確認済みです。
-- **Databricks 上(SQL ウェアハウス、Foundation Model API)での動作は未確認です。** 開発環境からワークスペースに接続できないためです。
-  初回のデプロイ時に、テーブルの作成・読み書きと、AI での文章生成を確認してください。
+- Databricks 上では次を確認済みです。
+  - GitHub の `main` からのデプロイと起動
+  - 起動時にスキーマ `workspace.trial_class_scheduler` へテーブルが作られること
+  - 文章生成 AI(`system.ai.gemma-3-12b`)が AI Gateway の呼び出し方で応答すること(アプリの外から1回呼んで確認)
+- **Databricks 上の画面操作は未確認です。** アプリの画面はブラウザでのログインが必要なため、
+  開発環境からは開けません。デモデータでの一通りの操作と、AI での理由の整え方は、実際に画面を開いて確認してください。
