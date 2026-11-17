@@ -1,0 +1,11 @@
+# Databricks Apps の設定。リソースの ID は書かず、アプリに追加したリソースのキーを valueFrom で参照する
+command: ["python", "app.py"]
+env:
+  - name: DATABRICKS_WAREHOUSE_ID
+    valueFrom: sql-warehouse        # アプリのリソース:SQL ウェアハウス(Can use)
+  - name: SERVING_ENDPOINT
+    valueFrom: serving-endpoint     # アプリのリソース:モデルサービングエンドポイント(Can query)。なくても動く
+  - name: APP_CATALOG
+    value: workspace
+  - name: APP_SCHEMA
+    value: taiken_chosei

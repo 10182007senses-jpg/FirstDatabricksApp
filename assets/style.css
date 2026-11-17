@@ -1,0 +1,12 @@
+/* 画面全体の細かな調整 */
+body { background: #f8f9fb; font-family: "Hiragino Sans", "Yu Gothic UI", "Meiryo", system-ui, sans-serif; }
+.nav-tabs .nav-link { color: #374151; }
+.nav-tabs .nav-link.active { font-weight: 600; }
+.form-check { margin-bottom: 0; }
+/* 表:プルダウンが切れないようにし、文字を本文と同じ書体にそろえる */
+.dash-table-container .dropdown .Select-menu-outer { display: block !important; }
+.dash-table-container .dash-spreadsheet-container .dash-spreadsheet-inner td,
+.dash-table-container .dash-spreadsheet-container .dash-spreadsheet-inner td input,
+.dash-table-container .Select-value-label,
+.dash-table-container .Select-option { font-family: inherit !important; font-size: 14px; }
+.dash-table-container .Select-control { border: none; background: transparent; }
