@@ -1,0 +1,124 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 1420" width="1100" height="1420" font-family='"Hiragino Sans","Yu Gothic UI","Meiryo","Noto Sans CJK JP","Noto Sans JP",sans-serif'>
+<defs><marker id="head" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#707070"/></marker><marker id="tail" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#707070"/></marker></defs>
+<rect width="1100" height="1420" fill="#fff"/>
+<circle cx="555.0" cy="44" r="34" fill="#08427B"/>
+<rect x="430" y="66" width="250" height="114" rx="34" fill="#08427B"/>
+<text x="555.0" y="94" font-size="17" fill="#fff" font-weight="bold" text-anchor="middle">広報の先生</text>
+<text x="555.0" y="111" font-size="11" fill="#fff" font-weight="normal" text-anchor="middle">[Person]</text>
+<text x="555.0" y="138" font-size="12" fill="#fff" font-weight="normal" text-anchor="middle">割り当て案を確認・確定する(4名)</text>
+<rect x="20" y="230" width="1060" height="920" fill="none" stroke="#666" stroke-dasharray="8 6"/>
+<text x="30" y="1124" font-size="14" fill="#222" font-weight="bold" text-anchor="start">Webアプリ</text>
+<text x="30" y="1140" font-size="11" fill="#444" font-weight="normal" text-anchor="start">[Container: Databricks Apps / Dash]</text>
+<rect x="40" y="270" width="440" height="120" rx="6" fill="#85BBF0" stroke="#2b6cb0" stroke-opacity=".5"/>
+<text x="260.0" y="310.0" font-size="17" fill="#0b2a4a" font-weight="bold" text-anchor="middle">月次調整の画面</text>
+<text x="260.0" y="327.0" font-size="11" fill="#0b2a4a" font-weight="normal" text-anchor="middle">[Component: Dash — app.py]</text>
+<text x="260.0" y="354.0" font-size="12" fill="#0b2a4a" font-weight="normal" text-anchor="middle">① 準備・② 割り当て案・③ 連絡文</text>
+<text x="260.0" y="371.0" font-size="12" fill="#0b2a4a" font-weight="normal" text-anchor="middle">表示と操作だけ(計算はしない)</text>
+<rect x="640" y="270" width="380" height="120" rx="6" fill="#85BBF0" stroke="#2b6cb0" stroke-opacity=".5"/>
+<text x="830.0" y="318.5" font-size="17" fill="#0b2a4a" font-weight="bold" text-anchor="middle">登録の画面</text>
+<text x="830.0" y="335.5" font-size="11" fill="#0b2a4a" font-weight="normal" text-anchor="middle">[Component: Dash — app.py]</text>
+<text x="830.0" y="362.5" font-size="12" fill="#0b2a4a" font-weight="normal" text-anchor="middle">マスター登録(F2)・設定(Should の重み)</text>
+<rect x="40" y="470" width="440" height="120" rx="6" fill="#85BBF0" stroke="#2b6cb0" stroke-opacity=".5"/>
+<text x="260.0" y="510.0" font-size="17" fill="#0b2a4a" font-weight="bold" text-anchor="middle">割り当て管理</text>
+<text x="260.0" y="527.0" font-size="11" fill="#0b2a4a" font-weight="normal" text-anchor="middle">[Component: Python — scheduler/manager.py]</text>
+<text x="260.0" y="554.0" font-size="12" fill="#0b2a4a" font-weight="normal" text-anchor="middle">手順をまとめる:取り込む・案を作る・修正する・</text>
+<text x="260.0" y="571.0" font-size="12" fill="#0b2a4a" font-weight="normal" text-anchor="middle">確定する・連絡文を作る(F1/F4/F7/F8/F14)</text>
+<rect x="640" y="470" width="260" height="120" rx="6" fill="#85BBF0" stroke="#2b6cb0" stroke-opacity=".5"/>
+<text x="770.0" y="510.0" font-size="17" fill="#0b2a4a" font-weight="bold" text-anchor="middle">データアクセス</text>
+<text x="770.0" y="527.0" font-size="11" fill="#0b2a4a" font-weight="normal" text-anchor="middle">[Component: data_access.py + schema.py]</text>
+<text x="770.0" y="554.0" font-size="12" fill="#0b2a4a" font-weight="normal" text-anchor="middle">テーブルの読み書きを一か所に集める</text>
+<text x="770.0" y="571.0" font-size="12" fill="#0b2a4a" font-weight="normal" text-anchor="middle">(Databricks SQL / ローカルは SQLite)</text>
+<rect x="40" y="690" width="190" height="120" rx="6" fill="#85BBF0" stroke="#2b6cb0" stroke-opacity=".5"/>
+<text x="135.0" y="721.5" font-size="17" fill="#0b2a4a" font-weight="bold" text-anchor="middle">割り当て作成</text>
+<text x="135.0" y="738.5" font-size="11" fill="#0b2a4a" font-weight="normal" text-anchor="middle">[Component: solver.py]</text>
+<text x="135.0" y="765.5" font-size="12" fill="#0b2a4a" font-weight="normal" text-anchor="middle">案を作る(F4)</text>
+<text x="135.0" y="782.5" font-size="12" fill="#0b2a4a" font-weight="normal" text-anchor="middle">代わりの系統(F9)</text>
+<text x="135.0" y="799.5" font-size="12" fill="#0b2a4a" font-weight="normal" text-anchor="middle">組めない理由(F5)</text>
+<rect x="250" y="690" width="190" height="120" rx="6" fill="#85BBF0" stroke="#2b6cb0" stroke-opacity=".5"/>
+<text x="345.0" y="730.0" font-size="17" fill="#0b2a4a" font-weight="bold" text-anchor="middle">理由説明</text>
+<text x="345.0" y="747.0" font-size="11" fill="#0b2a4a" font-weight="normal" text-anchor="middle">[Component: reasons.py]</text>
+<text x="345.0" y="774.0" font-size="12" fill="#0b2a4a" font-weight="normal" text-anchor="middle">各行の理由を</text>
+<text x="345.0" y="791.0" font-size="12" fill="#0b2a4a" font-weight="normal" text-anchor="middle">事実から組み立てる(F6)</text>
+<rect x="460" y="690" width="190" height="120" rx="6" fill="#85BBF0" stroke="#2b6cb0" stroke-opacity=".5"/>
+<text x="555.0" y="730.0" font-size="17" fill="#0b2a4a" font-weight="bold" text-anchor="middle">連絡文作成</text>
+<text x="555.0" y="747.0" font-size="11" fill="#0b2a4a" font-weight="normal" text-anchor="middle">[Component: messages.py]</text>
+<text x="555.0" y="774.0" font-size="12" fill="#0b2a4a" font-weight="normal" text-anchor="middle">下書きを作る(F8)</text>
+<text x="555.0" y="791.0" font-size="12" fill="#0b2a4a" font-weight="normal" text-anchor="middle">割り当てとの照合</text>
+<rect x="780" y="690" width="220" height="120" rx="6" fill="#85BBF0" stroke="#2b6cb0" stroke-opacity=".5" stroke-dasharray="6 4"/>
+<text x="890.0" y="730.0" font-size="17" fill="#0b2a4a" font-weight="bold" text-anchor="middle">デモデータ</text>
+<text x="890.0" y="747.0" font-size="11" fill="#0b2a4a" font-weight="normal" text-anchor="middle">[Component: sample_data.py]</text>
+<text x="890.0" y="774.0" font-size="12" fill="#0b2a4a" font-weight="normal" text-anchor="middle">架空のマスターと</text>
+<text x="890.0" y="791.0" font-size="12" fill="#0b2a4a" font-weight="normal" text-anchor="middle">月次データを入れる</text>
+<rect x="40" y="900" width="330" height="120" rx="6" fill="#85BBF0" stroke="#2b6cb0" stroke-opacity=".5"/>
+<text x="205.0" y="940.0" font-size="17" fill="#0b2a4a" font-weight="bold" text-anchor="middle">ルール判定</text>
+<text x="205.0" y="957.0" font-size="11" fill="#0b2a4a" font-weight="normal" text-anchor="middle">[Component: Python — scheduler/rules.py]</text>
+<text x="205.0" y="984.0" font-size="12" fill="#0b2a4a" font-weight="normal" text-anchor="middle">R1〜R10 を判定する(Must / Should / 警告)</text>
+<text x="205.0" y="1001.0" font-size="12" fill="#0b2a4a" font-weight="normal" text-anchor="middle">DB にも画面にも触らない</text>
+<rect x="400" y="900" width="290" height="120" rx="6" fill="#85BBF0" stroke="#2b6cb0" stroke-opacity=".5"/>
+<text x="545.0" y="940.0" font-size="17" fill="#0b2a4a" font-weight="bold" text-anchor="middle">LLM呼び出し</text>
+<text x="545.0" y="957.0" font-size="11" fill="#0b2a4a" font-weight="normal" text-anchor="middle">[Component: Python — scheduler/llm.py]</text>
+<text x="545.0" y="984.0" font-size="12" fill="#0b2a4a" font-weight="normal" text-anchor="middle">講師名を伏せて依頼し、</text>
+<text x="545.0" y="1001.0" font-size="12" fill="#0b2a4a" font-weight="normal" text-anchor="middle">返ってきた文の名前を戻す</text>
+<rect x="350" y="1200" width="300" height="110" rx="6" fill="#999999" stroke="#2b6cb0" stroke-opacity=".5"/>
+<text x="500.0" y="1243.5" font-size="17" fill="#fff" font-weight="bold" text-anchor="middle">LLM</text>
+<text x="500.0" y="1260.5" font-size="11" fill="#fff" font-weight="normal" text-anchor="middle">[外部システム: Foundation Model API]</text>
+<text x="500.0" y="1287.5" font-size="12" fill="#fff" font-weight="normal" text-anchor="middle">理由文・あいさつ文を整える</text>
+<path d="M700,1209 a160.0,14 0 0 1 320,0 v112 a160.0,14 0 0 1 -320,0 z" fill="#438DD5"/><path d="M700,1209 a160.0,14 0 0 0 320,0" fill="none" stroke="#fff" stroke-opacity=".5"/>
+<text x="860.0" y="1255.0" font-size="17" fill="#fff" font-weight="bold" text-anchor="middle">テーブル群</text>
+<text x="860.0" y="1272.0" font-size="11" fill="#fff" font-weight="normal" text-anchor="middle">[Container: Delta Lake / Unity Catalog]</text>
+<text x="860.0" y="1299.0" font-size="12" fill="#fff" font-weight="normal" text-anchor="middle">マスター・対応可能日・使えない教室・</text>
+<text x="860.0" y="1316.0" font-size="12" fill="#fff" font-weight="normal" text-anchor="middle">割り当て・連絡文・修正の記録</text>
+<path d="M470,180 L300,270" fill="none" stroke="#707070" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#head)"/>
+<path d="M640,180 L800,270" fill="none" stroke="#707070" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#head)"/>
+<path d="M200,390 L200,470" fill="none" stroke="#707070" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#head)"/>
+<path d="M480,340 L585,340 L585,500 L640,500" fill="none" stroke="#707070" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#head)"/>
+<path d="M780,390 L780,470" fill="none" stroke="#707070" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#head)"/>
+<path d="M960,390 L960,690" fill="none" stroke="#707070" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#head)"/>
+<path d="M810,690 L810,590" fill="none" stroke="#707070" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#head)"/>
+<path d="M480,550 L640,550" fill="none" stroke="#707070" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#head)"/>
+<path d="M135,590 L135,690" fill="none" stroke="#707070" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#head)"/>
+<path d="M345,590 L345,690" fill="none" stroke="#707070" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#head)"/>
+<path d="M440,590 L440,640 L555,640 L555,690" fill="none" stroke="#707070" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#head)"/>
+<path d="M40,530 L28,530 L28,960 L40,960" fill="none" stroke="#707070" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#head)"/>
+<path d="M135,810 L135,900" fill="none" stroke="#707070" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#head)"/>
+<path d="M310,810 L310,900" fill="none" stroke="#707070" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#head)"/>
+<path d="M420,810 L420,900" fill="none" stroke="#707070" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#head)"/>
+<path d="M555,810 L555,900" fill="none" stroke="#707070" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#head)"/>
+<path d="M500,1020 L500,1200" fill="none" stroke="#707070" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#head)" marker-start="url(#tail)"/>
+<path d="M720,590 L720,1205" fill="none" stroke="#707070" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#head)" marker-start="url(#tail)"/>
+<text x="4" y="1390" font-size="16" fill="#000" font-weight="bold" text-anchor="start">コンポーネント図:Webアプリ(コードから作成・v1・エージェントなし)</text>
+<text x="4" y="1410" font-size="11.5" fill="#444" font-weight="normal" text-anchor="start">補足:線は実際の import と呼び出しの向き。月次調整の画面は、連絡文の照合結果の表示のために連絡文作成も直接呼ぶ(図では省略)。</text>
+<rect x="221.0" y="185" width="158.0" height="38" fill="#fff" fill-opacity=".9"/>
+<text x="300" y="199" font-size="12" fill="#222" font-weight="bold" text-anchor="middle">確認・修正・確定・コピー</text>
+<text x="300" y="215" font-size="10.5" fill="#444" font-weight="normal" text-anchor="middle">[HTTPS]</text>
+<rect x="754.75" y="185" width="70.5" height="38" fill="#fff" fill-opacity=".9"/>
+<text x="790" y="199" font-size="12" fill="#222" font-weight="bold" text-anchor="middle">登録する</text>
+<text x="790" y="215" font-size="10.5" fill="#444" font-weight="normal" text-anchor="middle">[HTTPS]</text>
+<rect x="108.5" y="420" width="183.0" height="22" fill="#fff" fill-opacity=".9"/>
+<text x="200" y="434" font-size="12" fill="#222" font-weight="bold" text-anchor="middle">manager の関数を呼ぶ</text>
+<rect x="518.5" y="400" width="133.0" height="38" fill="#fff" fill-opacity=".9"/>
+<text x="585" y="414" font-size="12" fill="#222" font-weight="bold" text-anchor="middle">開催枠・対応可能日・</text>
+<text x="585" y="430" font-size="12" fill="#222" font-weight="bold" text-anchor="middle">使えない教室を保存</text>
+<rect x="763.5" y="420" width="33.0" height="22" fill="#fff" fill-opacity=".9"/>
+<text x="780" y="434" font-size="12" fill="#222" font-weight="bold" text-anchor="middle">保存</text>
+<rect x="835.5" y="603" width="120.5" height="22" fill="#fff" fill-opacity=".9"/>
+<text x="952" y="617" font-size="12" fill="#222" font-weight="bold" text-anchor="end">デモデータを入れる</text>
+<rect x="793.5" y="648" width="33.0" height="22" fill="#fff" fill-opacity=".9"/>
+<text x="810" y="662" font-size="12" fill="#222" font-weight="bold" text-anchor="middle">投入</text>
+<rect x="531.0" y="524" width="58.0" height="22" fill="#fff" fill-opacity=".9"/>
+<text x="560" y="538" font-size="12" fill="#222" font-weight="bold" text-anchor="middle">読み書き</text>
+<rect x="106.0" y="640" width="58.0" height="22" fill="#fff" fill-opacity=".9"/>
+<text x="135" y="654" font-size="12" fill="#222" font-weight="bold" text-anchor="middle">呼び出す</text>
+<rect x="30" y="838" width="70.5" height="22" fill="#fff" fill-opacity=".9"/>
+<text x="34" y="852" font-size="12" fill="#222" font-weight="bold" text-anchor="start">再チェック</text>
+<rect x="99.75" y="846" width="70.5" height="22" fill="#fff" fill-opacity=".9"/>
+<text x="135" y="860" font-size="12" fill="#222" font-weight="bold" text-anchor="middle">判定を使う</text>
+<rect x="452.75" y="846" width="70.5" height="22" fill="#fff" fill-opacity=".9"/>
+<text x="488" y="860" font-size="12" fill="#222" font-weight="bold" text-anchor="middle">文章を依頼</text>
+<rect x="414.75" y="1080" width="170.5" height="38" fill="#fff" fill-opacity=".9"/>
+<text x="500" y="1094" font-size="12" fill="#222" font-weight="bold" text-anchor="middle">伏せた文で生成を依頼・返却</text>
+<text x="500" y="1110" font-size="10.5" fill="#444" font-weight="normal" text-anchor="middle">[HTTPS]</text>
+<rect x="691.0" y="1080" width="58.0" height="38" fill="#fff" fill-opacity=".9"/>
+<text x="720" y="1094" font-size="12" fill="#222" font-weight="bold" text-anchor="middle">読み書き</text>
+<text x="720" y="1110" font-size="10.5" fill="#444" font-weight="normal" text-anchor="middle">[SQL]</text>
+</svg>

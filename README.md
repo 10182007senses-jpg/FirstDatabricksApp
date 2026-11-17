@@ -36,6 +36,18 @@
 - **AI が使えなくても動きます。** エンドポイントが未設定・呼び出し失敗のときは、定型文に切り替わります。
 - **ロジックは画面と DB に依存しません。** `scheduler/rules.py` と `scheduler/solver.py` は他の環境へそのまま移せます。
 
+## アーキテクチャ図
+
+コードの実際の構成(import と呼び出し関係)から作った図です。作り直すときは `python docs/architecture/make_diagrams.py` を実行します。
+
+### コンテナ図
+
+![コンテナ図](docs/architecture/container.svg)
+
+### コンポーネント図(Webアプリ)
+
+![コンポーネント図](docs/architecture/component.svg)
+
 ## 構成(コンポーネント図との対応)
 
 ```

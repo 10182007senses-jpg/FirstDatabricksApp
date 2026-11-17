@@ -1,0 +1,95 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 1200" width="1100" height="1200" font-family='"Hiragino Sans","Yu Gothic UI","Meiryo","Noto Sans CJK JP","Noto Sans JP",sans-serif'>
+<defs><marker id="head" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#707070"/></marker><marker id="tail" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#707070"/></marker></defs>
+<rect width="1100" height="1200" fill="#fff"/>
+<circle cx="160.0" cy="44" r="34" fill="#08427B"/>
+<rect x="40" y="66" width="240" height="114" rx="34" fill="#08427B"/>
+<text x="160.0" y="94" font-size="17" fill="#fff" font-weight="bold" text-anchor="middle">広報の先生</text>
+<text x="160.0" y="111" font-size="11" fill="#fff" font-weight="normal" text-anchor="middle">[Person]</text>
+<text x="160.0" y="138" font-size="12" fill="#fff" font-weight="normal" text-anchor="middle">割り当て案を確認・確定し、</text>
+<text x="160.0" y="155" font-size="12" fill="#fff" font-weight="normal" text-anchor="middle">連絡文を送る(4名)</text>
+<rect x="410" y="40" width="250" height="120" rx="6" fill="#999999" stroke="#2b6cb0" stroke-opacity=".5"/>
+<text x="535.0" y="88.5" font-size="17" fill="#fff" font-weight="bold" text-anchor="middle">先生のメール</text>
+<text x="535.0" y="105.5" font-size="11" fill="#fff" font-weight="normal" text-anchor="middle">[外部システム]</text>
+<text x="535.0" y="132.5" font-size="12" fill="#fff" font-weight="normal" text-anchor="middle">連絡文を送る</text>
+<circle cx="930.0" cy="44" r="34" fill="#08427B"/>
+<rect x="810" y="66" width="240" height="114" rx="34" fill="#08427B"/>
+<text x="930.0" y="94" font-size="17" fill="#fff" font-weight="bold" text-anchor="middle">講師</text>
+<text x="930.0" y="111" font-size="11" fill="#fff" font-weight="normal" text-anchor="middle">[Person]</text>
+<text x="930.0" y="138" font-size="12" fill="#fff" font-weight="normal" text-anchor="middle">対応可能日をフォームで回答する</text>
+<rect x="410" y="260" width="250" height="110" rx="6" fill="#999999" stroke="#2b6cb0" stroke-opacity=".5"/>
+<text x="535.0" y="303.5" font-size="17" fill="#fff" font-weight="bold" text-anchor="middle">HP業者</text>
+<text x="535.0" y="320.5" font-size="11" fill="#fff" font-weight="normal" text-anchor="middle">[外部の会社]</text>
+<text x="535.0" y="347.5" font-size="12" fill="#fff" font-weight="normal" text-anchor="middle">体験授業をHPに公開する</text>
+<rect x="805" y="260" width="250" height="110" rx="6" fill="#999999" stroke="#2b6cb0" stroke-opacity=".5"/>
+<text x="930.0" y="303.5" font-size="17" fill="#fff" font-weight="bold" text-anchor="middle">Googleフォーム</text>
+<text x="930.0" y="320.5" font-size="11" fill="#fff" font-weight="normal" text-anchor="middle">[外部システム]</text>
+<text x="930.0" y="347.5" font-size="12" fill="#fff" font-weight="normal" text-anchor="middle">講師の対応可能日を集める</text>
+<rect x="20" y="440" width="1060" height="540" fill="none" stroke="#666" stroke-dasharray="8 6"/>
+<text x="30" y="954" font-size="14" fill="#222" font-weight="bold" text-anchor="start">体験授業調整AI</text>
+<text x="30" y="970" font-size="11" fill="#444" font-weight="normal" text-anchor="start">[Software System]</text>
+<rect x="40" y="500" width="340" height="170" rx="6" fill="#438DD5" stroke="#2b6cb0" stroke-opacity=".5"/>
+<text x="210.0" y="556.5" font-size="17" fill="#fff" font-weight="bold" text-anchor="middle">Webアプリ</text>
+<text x="210.0" y="573.5" font-size="11" fill="#fff" font-weight="normal" text-anchor="middle">[Container: Databricks Apps / Dash(Python)]</text>
+<text x="210.0" y="600.5" font-size="12" fill="#fff" font-weight="normal" text-anchor="middle">開催枠・対応可能日・使えない教室の登録、</text>
+<text x="210.0" y="617.5" font-size="12" fill="#fff" font-weight="normal" text-anchor="middle">割り当て案の作成とルール判定、</text>
+<text x="210.0" y="634.5" font-size="12" fill="#fff" font-weight="normal" text-anchor="middle">理由・連絡文の下書き、マスター登録</text>
+<rect x="740" y="500" width="310" height="150" rx="6" fill="#438DD5" stroke="#2b6cb0" stroke-opacity=".5"/>
+<text x="895.0" y="555.0" font-size="17" fill="#fff" font-weight="bold" text-anchor="middle">回答の取り込み</text>
+<text x="895.0" y="572.0" font-size="11" fill="#fff" font-weight="normal" text-anchor="middle">[Container: Google Apps Script]</text>
+<text x="895.0" y="599.0" font-size="12" fill="#fff" font-weight="normal" text-anchor="middle">フォーム送信時に、回答を</text>
+<text x="895.0" y="616.0" font-size="12" fill="#fff" font-weight="normal" text-anchor="middle">availability_raw テーブルへ書き込む</text>
+<path d="M740,774 a155.0,14 0 0 1 310,0 v142 a155.0,14 0 0 1 -310,0 z" fill="#438DD5"/><path d="M740,774 a155.0,14 0 0 0 310,0" fill="none" stroke="#fff" stroke-opacity=".5"/>
+<text x="895.0" y="826.5" font-size="17" fill="#fff" font-weight="bold" text-anchor="middle">テーブル群</text>
+<text x="895.0" y="843.5" font-size="11" fill="#fff" font-weight="normal" text-anchor="middle">[Container: Delta Lake / Unity Catalog]</text>
+<text x="895.0" y="870.5" font-size="12" fill="#fff" font-weight="normal" text-anchor="middle">マスター9種・開催枠・月次データ6種、</text>
+<text x="895.0" y="887.5" font-size="12" fill="#fff" font-weight="normal" text-anchor="middle">フォーム回答・週の目安・設定</text>
+<text x="895.0" y="904.5" font-size="12" fill="#fff" font-weight="normal" text-anchor="middle">(スキーマ workspace.taiken_chosei)</text>
+<rect x="40" y="1040" width="340" height="110" rx="6" fill="#999999" stroke="#2b6cb0" stroke-opacity=".5"/>
+<text x="210.0" y="1083.5" font-size="17" fill="#fff" font-weight="bold" text-anchor="middle">LLM</text>
+<text x="210.0" y="1100.5" font-size="11" fill="#fff" font-weight="normal" text-anchor="middle">[外部システム: Foundation Model API]</text>
+<text x="210.0" y="1127.5" font-size="12" fill="#fff" font-weight="normal" text-anchor="middle">理由文とあいさつ文を整える(なくても動く)</text>
+<path d="M110,180 L110,500" fill="none" stroke="#707070" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#head)"/>
+<path d="M230,500 L230,180" fill="none" stroke="#707070" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#head)"/>
+<path d="M280,100 L410,100" fill="none" stroke="#707070" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#head)"/>
+<path d="M660,100 L810,100" fill="none" stroke="#707070" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#head)"/>
+<path d="M535,160 L535,260" fill="none" stroke="#707070" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#head)"/>
+<path d="M930,180 L930,260" fill="none" stroke="#707070" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#head)"/>
+<path d="M915,370 L895,500" fill="none" stroke="#707070" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#head)"/>
+<path d="M895,650 L895,760" fill="none" stroke="#707070" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#head)"/>
+<path d="M380,585 L560,585 L560,850 L740,850" fill="none" stroke="#707070" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#head)"/>
+<path d="M210,670 L210,1040" fill="none" stroke="#707070" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#head)" marker-start="url(#tail)"/>
+<text x="4" y="1170" font-size="16" fill="#000" font-weight="bold" text-anchor="start">コンテナ図:体験授業調整システム(コードから作成・エージェントなし)</text>
+<text x="4" y="1190" font-size="11.5" fill="#444" font-weight="normal" text-anchor="start">補足:対応可能日はフォーム経由のほか、Webアプリの CSV 取り込み・画面入力でも登録できる。ローカル確認時はテーブル群の代わりに SQLite を使う。</text>
+<rect x="74.75" y="280" width="70.5" height="38" fill="#fff" fill-opacity=".9"/>
+<text x="110" y="294" font-size="12" fill="#222" font-weight="bold" text-anchor="middle">操作する</text>
+<text x="110" y="310" font-size="10.5" fill="#444" font-weight="normal" text-anchor="middle">[HTTPS]</text>
+<rect x="195.5" y="352" width="133.0" height="54" fill="#fff" fill-opacity=".9"/>
+<text x="262" y="366" font-size="12" fill="#222" font-weight="bold" text-anchor="middle">割り当て案・理由・</text>
+<text x="262" y="382" font-size="12" fill="#222" font-weight="bold" text-anchor="middle">連絡文の下書きを表示</text>
+<text x="262" y="398" font-size="10.5" fill="#444" font-weight="normal" text-anchor="middle">[画面・コピーボタン]</text>
+<rect x="297.25" y="58" width="95.5" height="38" fill="#fff" fill-opacity=".9"/>
+<text x="345" y="72" font-size="12" fill="#222" font-weight="bold" text-anchor="middle">コピペして送信</text>
+<text x="345" y="88" font-size="10.5" fill="#444" font-weight="normal" text-anchor="middle">[手動]</text>
+<rect x="712.25" y="58" width="45.5" height="38" fill="#fff" fill-opacity=".9"/>
+<text x="735" y="72" font-size="12" fill="#222" font-weight="bold" text-anchor="middle">送る</text>
+<text x="735" y="88" font-size="10.5" fill="#444" font-weight="normal" text-anchor="middle">[メール]</text>
+<rect x="512.25" y="190.0" width="45.5" height="38" fill="#fff" fill-opacity=".9"/>
+<text x="535.0" y="204.0" font-size="12" fill="#222" font-weight="bold" text-anchor="middle">送る</text>
+<text x="535.0" y="220.0" font-size="10.5" fill="#444" font-weight="normal" text-anchor="middle">[メール]</text>
+<rect x="882.25" y="200.0" width="95.5" height="38" fill="#fff" fill-opacity=".9"/>
+<text x="930.0" y="214.0" font-size="12" fill="#222" font-weight="bold" text-anchor="middle">回答する</text>
+<text x="930.0" y="230.0" font-size="10.5" fill="#444" font-weight="normal" text-anchor="middle">[Webフォーム]</text>
+<rect x="863.5" y="415.0" width="83.0" height="38" fill="#fff" fill-opacity=".9"/>
+<text x="905.0" y="429.0" font-size="12" fill="#222" font-weight="bold" text-anchor="middle">送信時に起動</text>
+<text x="905.0" y="445.0" font-size="10.5" fill="#444" font-weight="normal" text-anchor="middle">[トリガー]</text>
+<rect x="678.5" y="685.0" width="433.0" height="38" fill="#fff" fill-opacity=".9"/>
+<text x="895.0" y="699.0" font-size="12" fill="#222" font-weight="bold" text-anchor="middle">回答を書き込む</text>
+<text x="895.0" y="715.0" font-size="10.5" fill="#444" font-weight="normal" text-anchor="middle">[HTTPS: SQL Statement Execution API]</text>
+<rect x="337.25" y="700" width="445.5" height="38" fill="#fff" fill-opacity=".9"/>
+<text x="560" y="714" font-size="12" fill="#222" font-weight="bold" text-anchor="middle">読み書き(起動時にテーブルを作成)</text>
+<text x="560" y="730" font-size="10.5" fill="#444" font-weight="normal" text-anchor="middle">[SQLウェアハウス: databricks-sql-connector]</text>
+<rect x="-31.5" y="772" width="483.0" height="54" fill="#fff" fill-opacity=".9"/>
+<text x="210" y="786" font-size="12" fill="#222" font-weight="bold" text-anchor="middle">文章の生成を依頼・返却</text>
+<text x="210" y="802" font-size="12" fill="#222" font-weight="bold" text-anchor="middle">(講師名は記号に置き換える)</text>
+<text x="210" y="818" font-size="10.5" fill="#444" font-weight="normal" text-anchor="middle">[HTTPS: serving-endpoints/…/invocations]</text>
+</svg>
