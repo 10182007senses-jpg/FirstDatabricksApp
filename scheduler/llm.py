@@ -70,16 +70,19 @@ class LLMClient:
         host = cfg.host if cfg.host.startswith("http") else f"https://{cfg.host}"
         headers = dict(cfg.authenticate())
         headers["Content-Type"] = "application/json"
-        resp = requests.post(
-            f"{host}/serving-endpoints/{self.endpoint}/invocations",
-            headers=headers,
-            json={
-                "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}],
-                "max_tokens": max_tokens,
-                "temperature": 0.2,
-            },
-            timeout=120,
-        )
+        payload = {
+            "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}],
+            "max_tokens": max_tokens,
+            "temperature": 0.2,
+        }
+        if "." in self.endpoint:
+            # Unity Catalog のモデルサービス(例: system.ai.gemma-3-12b)は AI Gateway で呼ぶ
+            url = f"{host}/ai-gateway/mlflow/v1/chat/completions"
+            payload["model"] = self.endpoint
+        else:
+            # 従来のモデルサービングエンドポイント(例: databricks-gpt-oss-20b)
+            url = f"{host}/serving-endpoints/{self.endpoint}/invocations"
+        resp = requests.post(url, headers=headers, json=payload, timeout=120)
         resp.raise_for_status()
         content = resp.json()["choices"][0]["message"]["content"]
         if isinstance(content, list):  # 一部のモデルは content をブロックの配列で返す

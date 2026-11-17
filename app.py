@@ -27,12 +27,23 @@ logging.basicConfig(level=logging.INFO)
 log = logging.getLogger("app")
 
 repo = Repo()
-try:
-    repo.init_schema()
-    STARTUP_ERROR = ""
-except Exception as exc:  # 画面に原因を出せるよう、起動は続ける
-    log.exception("テーブルの準備に失敗しました")
-    STARTUP_ERROR = str(exc)
+STARTUP_ERROR = "まだ準備していません"
+
+
+def ensure_schema() -> None:
+    """テーブルを用意する。失敗したら原因を覚えておき、次に画面を開いたときにもう一度試す。"""
+    global STARTUP_ERROR
+    if not STARTUP_ERROR:
+        return
+    try:
+        repo.init_schema()
+        STARTUP_ERROR = ""
+    except Exception as exc:  # 画面に原因を出せるよう、起動は続ける
+        log.exception("テーブルの準備に失敗しました")
+        STARTUP_ERROR = str(exc)
+
+
+ensure_schema()
 llm_client = llm.LLMClient()
 
 # Bootstrap の CSS は assets/ に同梱(学内ネットワークから外部 CDN に届かなくても表示が崩れないように)
@@ -128,6 +139,7 @@ def upload_button(component_id, label):
 # ================================================================ 全体のレイアウト
 
 def layout():
+    ensure_schema()
     y, m = default_month()
     years = [{"label": f"{v}年", "value": v} for v in range(y - 2, y + 2)]
     months = [{"label": f"{v}月", "value": v} for v in range(1, 13)]

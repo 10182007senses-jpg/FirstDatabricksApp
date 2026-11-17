@@ -58,7 +58,11 @@ class DatabricksBackend:
         return f"`{self.catalog}`.`{self.schema_name}`.`{name}`"
 
     def setup(self) -> None:
-        self.run(f"CREATE SCHEMA IF NOT EXISTS `{self.catalog}`.`{self.schema_name}`", [])
+        # アプリのサービスプリンシパルにはカタログの CREATE SCHEMA 権限がないことが多い。
+        # スキーマが既にあれば作成は不要なので、先に有無を確かめる
+        rows = self.run(f"SHOW SCHEMAS IN `{self.catalog}` LIKE ?", [self.schema_name])
+        if not rows:
+            self.run(f"CREATE SCHEMA IF NOT EXISTS `{self.catalog}`.`{self.schema_name}`", [])
 
     def _connect(self):
         from databricks import sql

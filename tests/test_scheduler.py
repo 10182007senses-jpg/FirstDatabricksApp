@@ -273,3 +273,33 @@ def test_settings_roundtrip(repo):
     repo.save_settings(s)
     loaded = repo.load_settings()
     assert (loaded.per_slot_max, loaded.w_r8) == (4, 99)
+
+
+def test_llm_uses_ai_gateway_for_uc_model_service(monkeypatch):
+    import requests
+
+    calls = []
+
+    class FakeConfig:
+        host = "https://example.cloud.databricks.com"
+
+        def authenticate(self):
+            return {"Authorization": "Bearer x"}
+
+    class FakeResp:
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return {"choices": [{"message": {"content": "講師Aです"}}]}
+
+    monkeypatch.setattr("databricks.sdk.core.Config", FakeConfig)
+    monkeypatch.setattr(requests, "post", lambda url, **kw: calls.append((url, kw["json"])) or FakeResp())
+
+    assert llm.LLMClient("system.ai.gemma-3-12b").complete("s", "青木", ["青木"]) == "青木です"
+    assert calls[-1][0].endswith("/ai-gateway/mlflow/v1/chat/completions")
+    assert calls[-1][1]["model"] == "system.ai.gemma-3-12b"
+
+    llm.LLMClient("databricks-gpt-oss-20b").complete("s", "u", [])
+    assert calls[-1][0].endswith("/serving-endpoints/databricks-gpt-oss-20b/invocations")
+    assert "model" not in calls[-1][1]
