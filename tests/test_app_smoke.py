@@ -58,3 +58,25 @@ def test_master_course_genre_save_keeps_other_columns(app_module):
     vfx = next(r for r in rows if r["course_id"] == "c_vfx")
     assert vfx["genre_id"] == "g_cg" and vfx["name"] == "VFX体験"
     assert len(rows) == len(mod.repo.read("course"))
+
+
+def test_quickref_export_matches_sheet_layout(app_module):
+    from io import BytesIO
+
+    from openpyxl import load_workbook
+
+    from scheduler import manager, quickref, sample_data
+
+    mod = app_module
+    month = "2026-12"
+    sample_data.seed_masters(mod.repo, confirmed_on=date(2026, 11, 1))
+    sample_data.seed_month(mod.repo, month)
+    mod.repo.save_events(month, {date(2026, 12, 6): "ゲームお仕事体験"})
+    manager.create_plan(mod.repo, month)
+    b = mod.repo.load(month)
+    ws = load_workbook(BytesIO(quickref.build_quickref(b.assignments, b.ctx)))["202612"]
+    assert ws["B3"].value == "イベント名" and "選べる体験授業" in ws["E3"].value
+    days = [ws.cell(row=r, column=2).value for r in range(4, ws.max_row + 1, 4)]
+    assert [d.date() for d in days] == sorted({s.day for s in b.ctx.slots.values()})
+    assert ws["D4"].value == "ゲームお仕事体験"
+    assert "先生" in ws["E5"].value  # 授業名の下の行は「講師 教室」

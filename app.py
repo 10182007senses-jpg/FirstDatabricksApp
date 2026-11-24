@@ -21,7 +21,7 @@ import dash_mantine_components as dmc
 from dash import ALL, MATCH, Input, Output, State, ctx, dash_table, dcc, html
 from dash.exceptions import PreventUpdate
 
-from scheduler import llm, manager, messages, sample_data, sheet_import
+from scheduler import llm, manager, messages, quickref, sample_data, sheet_import
 from scheduler.data_access import STATUS_LABEL, Repo
 from scheduler.models import PERIOD_LABEL, PRIORITY_LABEL, WEEKDAYS, Settings, slot_id_of
 from scheduler.rules import week_label
@@ -667,6 +667,7 @@ def plan_tab(bundle):
         else dmc.Button("この内容で確定する", id="plan-confirm", color="teal", size="sm", radius="md",
                         disabled=bool(rv.must) or not bundle.assignments),
         button("CSVで保存", "plan-export", disabled=not bundle.assignments),
+        button("早見表(Excel)で保存", "plan-quickref", disabled=not bundle.assignments),
         None if locked else upload_button("plan-upload", "過去の割り当てCSVを読み込む"),
     ], gap="xs", mb="md")
 
@@ -810,6 +811,17 @@ def export_plan(n, year, month):
     bundle = repo.load(month_key(year, month))
     return dict(content=manager.export_csv(bundle.assignments, bundle.ctx),
                 filename=f"taiken_wariate_{bundle.month}.csv", type="text/csv")
+
+
+@app.callback(Output("download", "data", allow_duplicate=True), Input("plan-quickref", "n_clicks"), *MONTH_STATE,
+              prevent_initial_call=True)
+def export_quickref(n, year, month):
+    """広報と共有している「体験授業早見表」と同じ形の Excel を作る。"""
+    if not n:
+        raise PreventUpdate
+    bundle = repo.load(month_key(year, month))
+    return dcc.send_bytes(quickref.build_quickref(bundle.assignments, bundle.ctx),
+                          f"体験授業早見表_{bundle.month.replace('-', '')}.xlsx")
 
 
 # ================================================================ ③ 連絡文
