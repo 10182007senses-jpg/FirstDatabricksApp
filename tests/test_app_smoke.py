@@ -18,7 +18,7 @@ def app_module(tmp_path, monkeypatch):
 
 def render_all(mod, month):
     for tab in ("prep", "plan", "msg", "master", "settings"):
-        body, _ = mod.render(tab, month[:4], str(int(month[5:])), 0)
+        body = mod.render(tab, month[:4], str(int(month[5:])), 0)[0]
         assert body is not None
         # 失敗したときは「データを読み込めませんでした」の Alert が返るので、それではないことを見る
         assert "読み込めませんでした" not in str(body), tab
@@ -31,15 +31,22 @@ def test_layout_and_tabs_render(app_module):
     render_all(mod, month)  # 空の状態
     from scheduler import manager, sample_data
 
+    assert mod.next_action(mod.repo.load(month))[0] == 0
+
     sample_data.seed_masters(mod.repo, confirmed_on=date(2026, 11, 1))
     sample_data.seed_month(mod.repo, month)
     mod.repo.save_events(month, {date(2026, 12, 6): "ゲームお仕事体験"})
     render_all(mod, month)
+    assert mod.next_action(mod.repo.load(month))[0] == 1
     manager.create_plan(mod.repo, month)
     render_all(mod, month)
+    assert mod.next_action(mod.repo.load(month))[0] == 2
     assert not manager.confirm(mod.repo, month)
+    assert mod.next_action(mod.repo.load(month))[0] == 3
     manager.create_messages(mod.repo, month, "鈴木")
     render_all(mod, month)
+    manager.mark_contacted(mod.repo, month)
+    assert mod.next_action(mod.repo.load(month))[0] == 4
 
 
 def test_master_course_genre_save_keeps_other_columns(app_module):

@@ -174,15 +174,28 @@ def layout():
             dmc.Select(id="year", data=years, value=str(y), w=100, size="sm", allowDeselect=False),
             dmc.Select(id="month", data=months, value=str(m), w=80, size="sm", allowDeselect=False),
             html.Div(id="status"),
-        ], gap="sm"),
-        dmc.Text(f"保存先:{repo.db.label}  ·  文章生成AI:{'利用可' if llm_client.available else '未設定(定型文で動作)'}",
-                 size="xs", c="dimmed"),
-    ], justify="space-between", h="100%", px="xl")
+            html.Div(id="dirty-badge"),
+        ], gap="sm", wrap="nowrap"),
+        dmc.Tooltip(dmc.Text(f"保存先:{repo.db.label}", size="xs", c="dimmed", truncate="end", maw=260),
+                    label=f"保存先:{repo.db.label} / 文章生成AI:{'利用可' if llm_client.available else '未設定(定型文で動作)'}"),
+    ], justify="space-between", h="100%", px="xl", wrap="nowrap")
     return dmc.MantineProvider(theme=THEME, children=dmc.AppShell([
         dmc.AppShellHeader(header, style={"borderBottom": f"1px solid {BORDER}"}),
         dmc.AppShellMain(dmc.Container([
             dcc.Store(id="refresh", data=0),
+            dcc.Store(id="dirty", data=False),  # 画面で直して、まだ保存していない変更があるか
+            dcc.Store(id="shown-tab", data="prep"),  # いま表示しているタブ
+            dcc.Store(id="pending-tab"),  # 保存していない変更があるときに、移ろうとしたタブ
+            html.Div(id="unload-guard", style={"display": "none"}),
             dcc.Download(id="download"),
+            dmc.Modal(id="leave-modal", title="保存していない変更があります", centered=True, radius="md", children=[
+                dmc.Text("このまま移ると、直した内容は消えます。先に保存ボタンを押してください。", size="sm"),
+                dmc.Group([
+                    dmc.Button("戻って保存する", id="leave-cancel", variant="filled", size="sm"),
+                    dmc.Button("保存せずに移る", id="leave-ok", variant="default", color="gray", size="sm"),
+                ], justify="flex-end", mt="lg", gap="xs"),
+            ]),
+            html.Div(id="progress"),
             alert(f"テーブルの準備に失敗しました:{STARTUP_ERROR}", "danger") if STARTUP_ERROR else None,
             dmc.Tabs(dmc.TabsList([dmc.TabsTab(label, value=key) for key, label in STEPS]),
                      id="tabs", value="prep", variant="default", mb="lg"),
@@ -206,8 +219,9 @@ app.layout = layout
 
 
 @app.callback(
-    Output("content", "children"), Output("status", "children"),
-    Input("tabs", "value"), Input("year", "value"), Input("month", "value"), Input("refresh", "data"),
+    Output("content", "children"), Output("status", "children"), Output("progress", "children"),
+    Output("dirty", "data"),
+    Input("shown-tab", "data"), Input("year", "value"), Input("month", "value"), Input("refresh", "data"),
 )
 def render(tab, year, month, _):
     try:
@@ -216,13 +230,150 @@ def render(tab, year, month, _):
                 "master": master_tab, "settings": settings_tab}[tab](bundle)
     except Exception as exc:
         log.exception("画面の表示に失敗しました")
-        return alert(f"データを読み込めませんでした:{exc}", "danger"), ""
+        return alert(f"データを読み込めませんでした:{exc}", "danger"), "", None, False
     color = {"preparing": "gray", "draft": "orange", "confirmed": "teal", "contacted": "blue"}
     badge = dmc.Badge(STATUS_LABEL[bundle.status], color=color[bundle.status], variant="light", radius="sm")
-    return body, badge
+    return body, badge, progress_bar(bundle), False
 
 
-@app.callback(Output("notice", "children"), Input("tabs", "value"), Input("year", "value"),
+# ================================================================ 進み具合と、案を作る前の確認
+
+FLOW = [("準備", "開催枠・対応可能日・使えない教室"), ("割り当て案", "案を作って確認する"),
+        ("確定", "違反がなければ確定する"), ("連絡", "連絡文を作って送る")]
+
+
+def readiness(bundle) -> list[dict]:
+    """割り当て案を作る前に、そろっているか確かめる項目。must=True がそろわないと案を作れない。"""
+    c = bundle.ctx
+    active = [t for t in c.teachers.values() if t.active]
+    no_genre = [x for x in c.courses.values() if not x.genre_id]
+    offered = {t for (t, s) in c.availability if s in c.slots}
+    return [
+        {"label": "講師・体験授業・教室のマスター", "ok": bool(active and c.courses and c.rooms), "must": True,
+         "todo": "「マスター」で調整共有シートを取り込む", "tab": "master"},
+        {"label": f"開催枠({len(c.slots)}枠)", "ok": bool(c.slots), "must": True,
+         "todo": "「① 準備」で開催日の午前・午後を選んで保存する", "tab": "prep"},
+        {"label": f"講師の対応可能日({len(offered)}人・{len(c.availability)}件)", "ok": bool(c.availability),
+         "must": True, "todo": "「① 準備」でフォームの回答を取り込む", "tab": "prep"},
+        {"label": "体験授業の系統" + (f"(未設定 {len(no_genre)}件)" if no_genre else ""), "ok": not no_genre,
+         "must": False, "todo": "「マスター」の体験授業で系統を選ぶ(未設定の授業は R5 で見ません)", "tab": "master"},
+        {"label": f"使えない教室・日時({len(c.room_blocks)}件)", "ok": bool(c.room_blocks), "must": False,
+         "todo": "教務側の行事がないか確かめ、あれば「① 準備」で登録する", "tab": "prep"},
+    ]
+
+
+def next_action(bundle) -> tuple[int, str]:
+    """(いまの段階, 次にやること)。段階は FLOW の番号。4 はすべて完了。"""
+    missing = [r for r in readiness(bundle) if r["must"] and not r["ok"]]
+    if missing:
+        return 0, missing[0]["todo"]
+    if bundle.status == "contacted":
+        return 4, "この月の調整は完了しています"
+    if bundle.status == "confirmed":
+        return 3, "「③ 連絡文」で下書きを作り、講師とHP業者に送る。送ったら「連絡済」にする"
+    if not bundle.assignments:
+        return 1, "「② 割り当て案」で「割り当て案を作る」を押す"
+    must = manager.review(bundle.assignments, bundle.ctx).must
+    if must:
+        return 2, f"必ず守るルールの違反が{len(must)}件あります。「② 割り当て案」で直してから確定する"
+    return 2, "「② 割り当て案」で内容を確認し、「この内容で確定する」を押す"
+
+
+def progress_bar(bundle):
+    step, todo = next_action(bundle)
+    stepper = dmc.Stepper(
+        [dmc.StepperStep(label=name, description=desc) for name, desc in FLOW],
+        active=step, size="sm", iconSize=28, color="accent", allowNextStepsSelect=False,
+    )
+    return dmc.Paper([
+        stepper,
+        dmc.Group([dmc.Badge("次にやること", variant="light", radius="sm"), dmc.Text(todo, size="sm")],
+                  gap="sm", mt="md"),
+    ], withBorder=True, radius="md", p="md", mb="md")
+
+
+def readiness_card(bundle):
+    rows = []
+    for r in readiness(bundle):
+        if r["ok"]:
+            icon, color = "✓", "teal"
+        else:
+            icon, color = ("!" if r["must"] else "・"), ("orange" if r["must"] else "gray")
+        rows.append(dmc.Group([
+            dmc.ThemeIcon(icon, color=color, variant="light", radius="xl", size="sm"),
+            dmc.Text(r["label"], size="sm", fw=500, w=260),
+            dmc.Text("" if r["ok"] else r["todo"] + ("" if r["must"] else "(なくても案は作れます)"),
+                     size="sm", c="dimmed", style={"flex": 1}),
+        ], gap="sm", wrap="nowrap"))
+    return section("案を作る前の確認", dmc.Stack(rows, gap=8),
+                   hint="オレンジの項目がそろうと「割り当て案を作る」を押せます。")
+
+
+# ================================================================ 保存していない変更
+
+def _mark_dirty(*_):
+    # 画面を作り直したときは、表示した部品がまとめて(または値なしで)届くので数えない。
+    # 先生が1か所を直したときは、その1つだけが届く
+    trig = ctx.triggered or []
+    if len(trig) != 1 or trig[0]["prop_id"] == "." or trig[0]["value"] is None:
+        raise PreventUpdate
+    return True
+
+
+# 先生が直せる入力が変わったら「保存していない変更あり」にする(画面を作り直したときは変わらない)
+for _input in [
+    Input({"type": "slot", "key": ALL}, "checked"), Input({"type": "event", "day": ALL}, "value"),
+    Input({"type": "av", "t": ALL, "s": ALL}, "checked"),
+    # 表は、先生が編集・行の削除をしたときだけ変わる data_timestamp を見る
+    Input("blocks-table", "data_timestamp"), Input("targets-table", "data_timestamp"),
+    Input("plan-table", "data_timestamp"), Input({"type": "master", "name": ALL}, "data_timestamp"),
+    Input({"type": "setting", "key": ALL}, "value"),
+]:
+    app.callback(Output("dirty", "data", allow_duplicate=True), _input, prevent_initial_call=True)(_mark_dirty)
+
+
+@app.callback(Output("dirty-badge", "children"), Output("year", "disabled"), Output("month", "disabled"),
+              Input("dirty", "data"))
+def show_dirty(dirty):
+    badge = dmc.Badge("保存していない変更があります", color="orange", variant="light", radius="sm") if dirty else None
+    # 対象月を変えると直した内容が消えるので、保存するまで変えられないようにする
+    return badge, bool(dirty), bool(dirty)
+
+
+# ブラウザを閉じる・再読み込みするときも確認を出す
+app.clientside_callback(
+    """function(dirty) {
+        window.onbeforeunload = dirty ? function(e) { e.preventDefault(); e.returnValue = ''; return ''; } : null;
+        return '';
+    }""",
+    Output("unload-guard", "children"), Input("dirty", "data"),
+)
+
+
+@app.callback(Output("shown-tab", "data"), Output("tabs", "value"), Output("leave-modal", "opened"),
+              Output("pending-tab", "data"),
+              Input("tabs", "value"), State("shown-tab", "data"), State("dirty", "data"),
+              prevent_initial_call=True)
+def switch_tab(tab, shown, dirty):
+    """保存していない変更があるときは、タブを移る前に確かめる。"""
+    if tab == shown:
+        raise PreventUpdate
+    if dirty:
+        return dash.no_update, shown, True, tab
+    return tab, dash.no_update, False, None
+
+
+@app.callback(Output("shown-tab", "data", allow_duplicate=True), Output("tabs", "value", allow_duplicate=True),
+              Output("leave-modal", "opened", allow_duplicate=True), Output("dirty", "data", allow_duplicate=True),
+              Input("leave-ok", "n_clicks"), Input("leave-cancel", "n_clicks"), State("pending-tab", "data"),
+              prevent_initial_call=True)
+def answer_leave(_ok, _cancel, pending):
+    if ctx.triggered_id == "leave-ok" and pending:
+        return pending, pending, False, False
+    return dash.no_update, dash.no_update, False, dash.no_update
+
+
+@app.callback(Output("notice", "children"), Input("shown-tab", "data"), Input("year", "value"),
               Input("month", "value"), prevent_initial_call=True)
 def clear_notice(*_):
     return None
@@ -277,15 +428,15 @@ def slot_card(bundle):
     )
 
 
-@app.callback(Output({"type": "slot", "key": ALL}, "checked"),
+@app.callback(Output({"type": "slot", "key": ALL}, "checked"), Output("dirty", "data", allow_duplicate=True),
               Input("slots-weekend", "n_clicks"), Input("slots-clear", "n_clicks"),
               State({"type": "slot", "key": ALL}, "id"), prevent_initial_call=True)
 def pick_slots(_w, _c, ids):
     if not ctx.triggered or not ctx.triggered[0]["value"]:
         raise PreventUpdate
     if ctx.triggered_id == "slots-clear":
-        return [False] * len(ids)
-    return [date.fromisoformat(i["key"][:10]).weekday() >= 5 for i in ids]
+        return [False] * len(ids), True
+    return [date.fromisoformat(i["key"][:10]).weekday() >= 5 for i in ids], True
 
 
 @app.callback(*NOTICE, Input("slots-save", "n_clicks"),
@@ -408,12 +559,12 @@ def block_card(bundle):
     )
 
 
-@app.callback(Output("blocks-table", "data"), Input("blocks-add", "n_clicks"), State("blocks-table", "data"),
-              prevent_initial_call=True)
+@app.callback(Output("blocks-table", "data"), Output("dirty", "data", allow_duplicate=True),
+              Input("blocks-add", "n_clicks"), State("blocks-table", "data"), prevent_initial_call=True)
 def add_block_row(n, data):
     if not n:
         raise PreventUpdate
-    return (data or []) + [{"day": None, "period": "終日", "room_id": None, "reason": ""}]
+    return (data or []) + [{"day": None, "period": "終日", "room_id": None, "reason": ""}], True
 
 
 @app.callback(*NOTICE, Input("blocks-save", "n_clicks"), State("blocks-table", "data"), *MONTH_STATE,
@@ -496,14 +647,20 @@ def findings_block(title, findings, kind):
 
 def plan_tab(bundle):
     c = bundle.ctx
-    if not c.slots:
-        return alert("先に「① 準備」で開催枠と対応可能日を登録してください。", "info")
     locked = bundle.status in ("confirmed", "contacted")
+    not_ready = any(r["must"] and not r["ok"] for r in readiness(bundle))
+    if not_ready or not bundle.assignments:
+        check = readiness_card(bundle)
+        if not_ready:
+            return check
+    else:
+        check = None
     rv = manager.review(bundle.assignments, c)
     flagged = {aid for f in rv.must for aid in f.assignment_ids}
 
     buttons = dmc.Group([
-        button("割り当て案を作る", "plan-create", primary=True, disabled=locked),
+        button("割り当て案を作り直す" if bundle.assignments else "割り当て案を作る", "plan-create", primary=True,
+               disabled=locked),
         button("AIで理由を読みやすくする", "plan-polish",
                disabled=locked or not bundle.assignments or not llm_client.available),
         button("確定を解除", "plan-unconfirm") if locked
@@ -558,7 +715,10 @@ def plan_tab(bundle):
         button("修正を保存して再チェック", "plan-save", primary=True),
     ], gap="xs", mt="sm")
 
+    if not bundle.assignments:  # 案がないうちは、件数や未充足の一覧は出さない
+        return html.Div([check, buttons])
     return html.Div([
+        check,
         buttons,
         dmc.Group([
             stat("割り当て", len(bundle.assignments)),
@@ -598,13 +758,13 @@ def polish_plan(_, year, month):
     return done("AIを呼び出せなかったため、理由は元の文のままです。", "warning")
 
 
-@app.callback(Output("plan-table", "data"), Input("plan-add", "n_clicks"), State("plan-table", "data"),
-              prevent_initial_call=True)
+@app.callback(Output("plan-table", "data"), Output("dirty", "data", allow_duplicate=True),
+              Input("plan-add", "n_clicks"), State("plan-table", "data"), prevent_initial_call=True)
 def add_plan_row(n, data):
     if not n:
         raise PreventUpdate
     return (data or []) + [{"assignment_id": "", "slot_id": None, "course_id": None, "teacher_id": None,
-                            "room_id": None, "event": "", "reason": "(新しい行。保存すると理由が付きます)"}]
+                            "room_id": None, "event": "", "reason": "(新しい行。保存すると理由が付きます)"}], True
 
 
 @app.callback(*NOTICE, Input("plan-save", "n_clicks"), State("plan-table", "data"),
