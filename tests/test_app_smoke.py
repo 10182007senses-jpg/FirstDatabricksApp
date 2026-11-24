@@ -1,0 +1,53 @@
+"""画面の組み立てテスト。すべてのタブを、空の状態・デモデータ・確定後で作ってみて、例外が出ないことを確かめる。"""
+from datetime import date
+
+import pytest
+
+
+@pytest.fixture
+def app_module(tmp_path, monkeypatch):
+    monkeypatch.setenv("LOCAL_DB_PATH", str(tmp_path / "ui.db"))
+    monkeypatch.delenv("DATABRICKS_WAREHOUSE_ID", raising=False)
+    import importlib
+    import sys
+
+    sys.modules.pop("app", None)
+    mod = importlib.import_module("app")
+    return mod
+
+
+def render_all(mod, month):
+    for tab in ("prep", "plan", "msg", "master", "settings"):
+        body, _ = mod.render(tab, month[:4], str(int(month[5:])), 0)
+        assert body is not None
+        # 失敗したときは「データを読み込めませんでした」の Alert が返るので、それではないことを見る
+        assert "読み込めませんでした" not in str(body), tab
+
+
+def test_layout_and_tabs_render(app_module):
+    mod = app_module
+    mod.layout()
+    month = "2026-12"
+    render_all(mod, month)  # 空の状態
+    from scheduler import manager, sample_data
+
+    sample_data.seed_masters(mod.repo, confirmed_on=date(2026, 11, 1))
+    sample_data.seed_month(mod.repo, month)
+    mod.repo.save_events(month, {date(2026, 12, 6): "ゲームお仕事体験"})
+    render_all(mod, month)
+    manager.create_plan(mod.repo, month)
+    render_all(mod, month)
+    assert not manager.confirm(mod.repo, month)
+    manager.create_messages(mod.repo, month, "鈴木")
+    render_all(mod, month)
+
+
+def test_master_course_genre_save_keeps_other_columns(app_module):
+    mod = app_module
+    from scheduler import sample_data
+
+    sample_data.seed_masters(mod.repo)
+    rows = mod.parse_master_rows("course", [{"course_id": "c_vfx", "genre_id": "g_cg"}])
+    vfx = next(r for r in rows if r["course_id"] == "c_vfx")
+    assert vfx["genre_id"] == "g_cg" and vfx["name"] == "VFX体験"
+    assert len(rows) == len(mod.repo.read("course"))

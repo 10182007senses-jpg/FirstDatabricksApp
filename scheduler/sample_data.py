@@ -50,14 +50,22 @@ def seed_masters(repo: Repo, confirmed_on: date | None = None) -> None:
         "genre": [{"genre_id": g, "name": n, "r5_target": g != "g_vfx"} for g, n in GENRES],
         "genre_substitute": [{"genre_id": g, "substitute_genre_id": s} for g, s in SUBSTITUTES],
         "software": [{"software_id": s, "name": n} for s, n in SOFTWARE],
-        "room": [{"room_id": r, "name": n} for r, n in ROOMS],
+        "room": [{"room_id": r, "name": n, "usable": True} for r, n in ROOMS],
         "room_software": [
             {"room_id": r, "software_id": s, "valid_from": None, "valid_to": None, "confirmed_on": confirmed_on}
             for r, softs in ROOM_SOFTWARE.items() for s in softs
         ],
-        "course": [{"course_id": c, "name": n, "genre_id": g} for c, n, g, _ in COURSES],
+        "course": [{"course_id": c, "name": n, "genre_id": g, "capacity": None, "note": ""}
+                   for c, n, g, _ in COURSES],
+        # ソフトがそろう教室のうち、最初の教室を「優先」、残りを「予備」にする
+        "course_room": [
+            {"course_id": c, "room_id": r, "priority": "main" if i == 0 else "backup"}
+            for c, _, _, softs in COURSES
+            for i, r in enumerate([r for r, have in ROOM_SOFTWARE.items() if set(softs) <= set(have)])
+        ],
+        "room_alternative": [],
         "course_software": [{"course_id": c, "software_id": s} for c, _, _, softs in COURSES for s in softs],
-        "teacher": [{"teacher_id": t, "name": n, "active": True} for t, n, _ in TEACHERS],
+        "teacher": [{"teacher_id": t, "name": n, "active": True, "email": None} for t, n, _ in TEACHERS],
         "teacher_course": [{"teacher_id": t, "course_id": c} for t, _, cs in TEACHERS for c in cs],
     }
     for table in MASTER_TABLES:

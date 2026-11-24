@@ -15,9 +15,10 @@
 <text x="260.0" y="354.0" font-size="12" fill="#0b2a4a" font-weight="normal" text-anchor="middle">① 準備・② 割り当て案・③ 連絡文</text>
 <text x="260.0" y="371.0" font-size="12" fill="#0b2a4a" font-weight="normal" text-anchor="middle">表示と操作だけ(計算はしない)</text>
 <rect x="640" y="270" width="380" height="120" rx="6" fill="#85BBF0" stroke="#2b6cb0" stroke-opacity=".5"/>
-<text x="830.0" y="318.5" font-size="17" fill="#0b2a4a" font-weight="bold" text-anchor="middle">登録の画面</text>
-<text x="830.0" y="335.5" font-size="11" fill="#0b2a4a" font-weight="normal" text-anchor="middle">[Component: Dash — app.py]</text>
-<text x="830.0" y="362.5" font-size="12" fill="#0b2a4a" font-weight="normal" text-anchor="middle">マスター登録(F2)・設定(Should の重み)</text>
+<text x="830.0" y="310.0" font-size="17" fill="#0b2a4a" font-weight="bold" text-anchor="middle">マスター・設定の画面</text>
+<text x="830.0" y="327.0" font-size="11" fill="#0b2a4a" font-weight="normal" text-anchor="middle">[Component: Dash — app.py]</text>
+<text x="830.0" y="354.0" font-size="12" fill="#0b2a4a" font-weight="normal" text-anchor="middle">シートの取り込み・系統と代わりの教室(F2)</text>
+<text x="830.0" y="371.0" font-size="12" fill="#0b2a4a" font-weight="normal" text-anchor="middle">設定(Should の重み)</text>
 <rect x="40" y="470" width="440" height="120" rx="6" fill="#85BBF0" stroke="#2b6cb0" stroke-opacity=".5"/>
 <text x="260.0" y="510.0" font-size="17" fill="#0b2a4a" font-weight="bold" text-anchor="middle">割り当て管理</text>
 <text x="260.0" y="527.0" font-size="11" fill="#0b2a4a" font-weight="normal" text-anchor="middle">[Component: Python — scheduler/manager.py]</text>
@@ -52,8 +53,13 @@
 <rect x="40" y="900" width="330" height="120" rx="6" fill="#85BBF0" stroke="#2b6cb0" stroke-opacity=".5"/>
 <text x="205.0" y="940.0" font-size="17" fill="#0b2a4a" font-weight="bold" text-anchor="middle">ルール判定</text>
 <text x="205.0" y="957.0" font-size="11" fill="#0b2a4a" font-weight="normal" text-anchor="middle">[Component: Python — scheduler/rules.py]</text>
-<text x="205.0" y="984.0" font-size="12" fill="#0b2a4a" font-weight="normal" text-anchor="middle">R1〜R10 を判定する(Must / Should / 警告)</text>
+<text x="205.0" y="984.0" font-size="12" fill="#0b2a4a" font-weight="normal" text-anchor="middle">R1〜R11 を判定する(Must / Should / 警告)</text>
 <text x="205.0" y="1001.0" font-size="12" fill="#0b2a4a" font-weight="normal" text-anchor="middle">DB にも画面にも触らない</text>
+<rect x="740" y="900" width="280" height="120" rx="6" fill="#85BBF0" stroke="#2b6cb0" stroke-opacity=".5"/>
+<text x="880.0" y="940.0" font-size="17" fill="#0b2a4a" font-weight="bold" text-anchor="middle">シート取り込み</text>
+<text x="880.0" y="957.0" font-size="11" fill="#0b2a4a" font-weight="normal" text-anchor="middle">[Component: sheet_import.py]</text>
+<text x="880.0" y="984.0" font-size="12" fill="#0b2a4a" font-weight="normal" text-anchor="middle">調整共有シート・フォーム回答を</text>
+<text x="880.0" y="1001.0" font-size="12" fill="#0b2a4a" font-weight="normal" text-anchor="middle">マスター・対応可能日の形に直す</text>
 <rect x="400" y="900" width="290" height="120" rx="6" fill="#85BBF0" stroke="#2b6cb0" stroke-opacity=".5"/>
 <text x="545.0" y="940.0" font-size="17" fill="#0b2a4a" font-weight="bold" text-anchor="middle">LLM呼び出し</text>
 <text x="545.0" y="957.0" font-size="11" fill="#0b2a4a" font-weight="normal" text-anchor="middle">[Component: Python — scheduler/llm.py]</text>
@@ -76,6 +82,7 @@
 <path d="M960,390 L960,690" fill="none" stroke="#707070" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#head)"/>
 <path d="M810,690 L810,590" fill="none" stroke="#707070" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#head)"/>
 <path d="M480,550 L640,550" fill="none" stroke="#707070" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#head)"/>
+<path d="M480,575 L620,575 L620,860 L880,860 L880,900" fill="none" stroke="#707070" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#head)"/>
 <path d="M135,590 L135,690" fill="none" stroke="#707070" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#head)"/>
 <path d="M345,590 L345,690" fill="none" stroke="#707070" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#head)"/>
 <path d="M440,590 L440,640 L555,640 L555,690" fill="none" stroke="#707070" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#head)"/>
@@ -91,9 +98,9 @@
 <rect x="221.0" y="185" width="158.0" height="38" fill="#fff" fill-opacity=".9"/>
 <text x="300" y="199" font-size="12" fill="#222" font-weight="bold" text-anchor="middle">確認・修正・確定・コピー</text>
 <text x="300" y="215" font-size="10.5" fill="#444" font-weight="normal" text-anchor="middle">[HTTPS]</text>
-<rect x="754.75" y="185" width="70.5" height="38" fill="#fff" fill-opacity=".9"/>
-<text x="790" y="199" font-size="12" fill="#222" font-weight="bold" text-anchor="middle">登録する</text>
-<text x="790" y="215" font-size="10.5" fill="#444" font-weight="normal" text-anchor="middle">[HTTPS]</text>
+<rect x="733.5" y="185" width="133.0" height="38" fill="#fff" fill-opacity=".9"/>
+<text x="800" y="199" font-size="12" fill="#222" font-weight="bold" text-anchor="middle">取り込む・系統を選ぶ</text>
+<text x="800" y="215" font-size="10.5" fill="#444" font-weight="normal" text-anchor="middle">[HTTPS]</text>
 <rect x="108.5" y="420" width="183.0" height="22" fill="#fff" fill-opacity=".9"/>
 <text x="200" y="434" font-size="12" fill="#222" font-weight="bold" text-anchor="middle">manager の関数を呼ぶ</text>
 <rect x="518.5" y="400" width="133.0" height="38" fill="#fff" fill-opacity=".9"/>
@@ -107,6 +114,8 @@
 <text x="810" y="662" font-size="12" fill="#222" font-weight="bold" text-anchor="middle">投入</text>
 <rect x="531.0" y="524" width="58.0" height="22" fill="#fff" fill-opacity=".9"/>
 <text x="560" y="538" font-size="12" fill="#222" font-weight="bold" text-anchor="middle">読み書き</text>
+<rect x="712.25" y="848" width="95.5" height="22" fill="#fff" fill-opacity=".9"/>
+<text x="760" y="862" font-size="12" fill="#222" font-weight="bold" text-anchor="middle">読み取りを頼む</text>
 <rect x="106.0" y="640" width="58.0" height="22" fill="#fff" fill-opacity=".9"/>
 <text x="135" y="654" font-size="12" fill="#222" font-weight="bold" text-anchor="middle">呼び出す</text>
 <rect x="30" y="838" width="70.5" height="22" fill="#fff" fill-opacity=".9"/>

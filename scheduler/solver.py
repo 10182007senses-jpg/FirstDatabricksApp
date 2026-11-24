@@ -11,7 +11,7 @@ import uuid
 from collections import Counter, defaultdict
 
 from . import rules
-from .models import Assignment, Context
+from .models import BACKUP, MAIN, Assignment, Context
 
 
 def new_id() -> str:
@@ -57,7 +57,10 @@ class _State:
         ]
         if not options:
             return None
-        return min(options, key=lambda r: (self.versatility[r], self.ctx.room_name(r)))
+        # ルール一覧 No.1: 体験授業一覧の「優先して入れる教室」→「予備教室」→ その他の順に使う
+        rank = {MAIN: 0, BACKUP: 1}
+        return min(options, key=lambda r: (
+            rank.get(self.ctx.room_priority(course_id, r, slot.day), 2), self.versatility[r], self.ctx.room_name(r)))
 
     def add(self, slot_id: str, teacher_id: str, course_id: str, room_id: str) -> None:
         self.assignments.append(Assignment(new_id(), slot_id, course_id, teacher_id, room_id))

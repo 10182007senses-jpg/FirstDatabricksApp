@@ -1,5 +1,6 @@
 # Dash は Databricks Apps にプリインストール済み(2.18.1)。追加で必要なものだけ書く
-dash-bootstrap-components==1.6.0
+dash-mantine-components==0.15.3
+openpyxl>=3.1
 databricks-sql-connector>=3.3
 databricks-sdk
 requests

@@ -14,14 +14,14 @@ from datetime import date, datetime, timedelta
 from . import schema
 from .messages import Message
 from .models import (
-    Assignment, Context, Course, Genre, PrevAssignment, RoomSoftware, Settings, Slot, Teacher,
-    slot_id_of, week_key_of,
+    Assignment, Context, Course, Genre, PrevAssignment, RoomAlternative, RoomSoftware, Settings, Slot,
+    Teacher, slot_id_of, week_key_of,
 )
 from .solver import new_id
 
 MASTER_TABLES = (
     "teacher", "genre", "genre_substitute", "course", "teacher_course",
-    "software", "course_software", "room", "room_software",
+    "software", "course_software", "room", "room_software", "course_room", "room_alternative",
 )
 STATUS_LABEL = {"preparing": "準備中", "draft": "案", "confirmed": "確定", "contacted": "連絡済"}
 
@@ -45,6 +45,12 @@ class SqliteBackend:
         params = [p.isoformat() if isinstance(p, date) else p for p in params]
         return self._conn.execute(sql, params).fetchall()
 
+    def columns(self, name: str) -> set[str]:
+        return {r[1] for r in self.run(f"PRAGMA table_info({name})", [])}
+
+    def add_column(self, name: str, column: str, typ: str) -> None:
+        self.run(f"ALTER TABLE {name} ADD COLUMN {column} {schema.SQLITE_TYPES[typ]}", [])
+
 
 class DatabricksBackend:
     dialect = "databricks"
@@ -63,6 +69,13 @@ class DatabricksBackend:
         rows = self.run(f"SHOW SCHEMAS IN `{self.catalog}` LIKE ?", [self.schema_name])
         if not rows:
             self.run(f"CREATE SCHEMA IF NOT EXISTS `{self.catalog}`.`{self.schema_name}`", [])
+
+    def columns(self, name: str) -> set[str]:
+        return {str(r[0]) for r in self.run(f"DESCRIBE TABLE {self.table(name)}", []) if r and r[0]
+                and not str(r[0]).startswith("#")}
+
+    def add_column(self, name: str, column: str, typ: str) -> None:
+        self.run(f"ALTER TABLE {self.table(name)} ADD COLUMNS ({column} {typ})", [])
 
     def _connect(self):
         from databricks import sql
@@ -138,6 +151,11 @@ class Repo:
             self.db.setup()
             for name in schema.TABLES:
                 self.db.run(schema.ddl(name, self.db.table(name), self.db.dialect), [])
+                # 前の版で作ったテーブルには、あとから足した列がないので追加する
+                have = self.db.columns(name)
+                for column, typ in schema.TABLES[name]:
+                    if column not in have:
+                        self.db.add_column(name, column, typ)
 
     def read(self, table: str, where: str = "", params: list | None = None) -> list[dict]:
         cols = schema.TABLES[table]
@@ -156,6 +174,8 @@ class Repo:
                     value = value.date()
                 elif value is not None and typ == "BOOLEAN":
                     value = bool(value)
+                elif value is not None and typ == "INT":
+                    value = int(value)
                 rec[col] = value
             out.append(rec)
         return out
@@ -231,13 +251,15 @@ class Repo:
     def _load(self, month: str) -> Bundle:
         ctx = Context(target_month=month, settings=self.load_settings())
         for r in self.read("teacher"):
-            ctx.teachers[r["teacher_id"]] = Teacher(r["teacher_id"], r["name"], r["active"] is not False)
+            ctx.teachers[r["teacher_id"]] = Teacher(
+                r["teacher_id"], r["name"], r["active"] is not False, r["email"])
         for r in self.read("genre"):
             ctx.genres[r["genre_id"]] = Genre(r["genre_id"], r["name"], r["r5_target"] is not False)
         for r in self.read("genre_substitute"):
             ctx.substitutes.setdefault(r["genre_id"], set()).add(r["substitute_genre_id"])
         for r in self.read("course"):
-            ctx.courses[r["course_id"]] = Course(r["course_id"], r["name"], r["genre_id"])
+            ctx.courses[r["course_id"]] = Course(
+                r["course_id"], r["name"], r["genre_id"], r["capacity"], r["note"] or "")
         for r in self.read("teacher_course"):
             ctx.teacher_courses.setdefault(r["teacher_id"], set()).add(r["course_id"])
         for r in self.read("software"):
@@ -245,7 +267,14 @@ class Repo:
         for r in self.read("course_software"):
             ctx.course_software.setdefault(r["course_id"], set()).add(r["software_id"])
         for r in self.read("room"):
-            ctx.rooms[r["room_id"]] = r["name"]
+            if r["usable"] is not False:  # 教室シートで「使用しない」の教室は割り当てに使わない
+                ctx.rooms[r["room_id"]] = r["name"]
+        for r in self.read("course_room"):
+            ctx.course_rooms.setdefault(r["course_id"], {})[r["room_id"]] = r["priority"] or "main"
+        ctx.room_alternatives = [
+            RoomAlternative(r["room_id"], r["alt_room_id"], r["valid_until"], r["note"] or "")
+            for r in self.read("room_alternative")
+        ]
         ctx.room_software = [
             RoomSoftware(r["room_id"], r["software_id"], r["valid_from"], r["valid_to"], r["confirmed_on"])
             for r in self.read("room_software")
@@ -254,6 +283,9 @@ class Repo:
         first, last = month_range(month)
         for r in self.read("slot", "day >= ? AND day <= ?", [first, last]):
             ctx.slots[r["slot_id"]] = Slot(r["slot_id"], r["day"], r["period"], r["week_key"])
+        for r in self.read("event", "day >= ? AND day <= ?", [first, last]):
+            if r["event_name"]:
+                ctx.events[r["day"]] = r["event_name"]
         for r in self.read("room_block", "slot_id LIKE ?", [f"{month}-%"]):
             if r["slot_id"] in ctx.slots:
                 ctx.room_blocks[(r["room_id"], r["slot_id"])] = r["reason"] or ""
@@ -303,6 +335,12 @@ class Repo:
         ]
         self.ensure_adjustment(month)
         self.replace("slot", rows, "day >= ? AND day <= ?", [first, last])
+
+    def save_events(self, month: str, names: dict[date, str]) -> None:
+        first, last = month_range(month)
+        rows = [{"day": d, "event_name": n.strip()} for d, n in sorted(names.items())
+                if n and n.strip() and first <= d <= last]
+        self.replace("event", rows, "day >= ? AND day <= ?", [first, last])
 
     def save_availability(self, month: str, pairs: set[tuple[str, str]]) -> None:
         adj = self.ensure_adjustment(month)

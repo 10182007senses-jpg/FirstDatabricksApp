@@ -44,8 +44,12 @@ def teacher_schedule(teacher_id: str, assignments: list[Assignment], ctx: Contex
 
 def hp_schedule(assignments: list[Assignment], ctx: Context) -> list[str]:
     rows = [a for a in assignments if a.slot_id in ctx.slots]
+    def event(a: Assignment) -> str:
+        name = ctx.event_name(ctx.slots[a.slot_id].day)
+        return f"【{name}】" if name else ""
+
     return [
-        f"・{ctx.slots[a.slot_id].label} {ctx.course_name(a.course_id)}"
+        f"・{ctx.slots[a.slot_id].label} {event(a)}{ctx.course_name(a.course_id)}"
         f"(担当:{ctx.teacher_name(a.teacher_id)})"
         for a in _ordered(rows, ctx)
     ]

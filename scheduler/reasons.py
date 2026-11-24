@@ -10,7 +10,7 @@ import json
 from collections import Counter
 
 from . import llm, rules
-from .models import PERIOD_LABEL, Assignment, Context
+from .models import MAIN, PERIOD_LABEL, Assignment, Context
 
 
 def build_facts(a: Assignment, assignments: list[Assignment], ctx: Context) -> list[str]:
@@ -42,6 +42,15 @@ def build_facts(a: Assignment, assignments: list[Assignment], ctx: Context) -> l
         facts.append(f"{soft}が入っている教室は{ctx.room_name(a.room_id)}のみ")
     elif soft:
         facts.append(f"{soft}が入っている教室から選択")
+    priority = ctx.room_priority(a.course_id, a.room_id, slot.day)
+    alt = [x for x in ctx.room_alternatives if x.alt_room_id == a.room_id
+           and a.room_id not in ctx.course_rooms.get(a.course_id, {})]
+    if priority and alt:
+        facts.append(f"{ctx.room_name(alt[0].room_id)}教室の代わりの教室(R11)")
+    elif priority == MAIN:
+        facts.append("体験授業一覧の優先教室")
+    elif priority:
+        facts.append("優先教室が埋まっているため予備教室を使用")
     other = [x for x in assignments if x.room_id == a.room_id and x.slot_id != a.slot_id
              and x.slot_id in ctx.slots and ctx.slots[x.slot_id].day == slot.day]
     if other:
