@@ -1,4 +1,6 @@
-"""ルール判定(要件定義書 6章 R1〜R10)。
+"""ルール判定(要件定義書 6章 R1〜R11)。
+
+R11(工事中の代わりの教室)は Context.room_priority で、代わりの教室を元の教室と同じ扱いにしています。
 
 純粋な関数だけで、DB にも画面にも触りません。
 割り当て案の作成後(F5)、先生の修正後(F7)、過去データの検証(S1)で同じ判定を使います。
@@ -214,7 +216,7 @@ def check_should(assignments: list[Assignment], ctx: Context) -> list[Finding]:
 # ---------------------------------------------------------------- 警告
 
 def check_warnings(assignments: list[Assignment], ctx: Context) -> list[Finding]:
-    findings: list[Finding] = []
+    findings: list[Finding] = check_room_priority(assignments, ctx)
     seen: set[tuple[str, str]] = set()
     for a in assignments:
         slot = ctx.slots.get(a.slot_id)
@@ -228,6 +230,21 @@ def check_warnings(assignments: list[Assignment], ctx: Context) -> list[Finding]
                 "R10", WARNING,
                 f"{ctx.room_name(a.room_id)}教室の{ctx.software.get(software_id, software_id)}は"
                 f"確認日が古い(または未確認)です。機材担当に確認してください"))
+    return findings
+
+
+def check_room_priority(assignments: list[Assignment], ctx: Context) -> list[Finding]:
+    """ルール一覧 No.1: 優先・予備教室以外に入れたときは、講師に動作確認をお願いする。"""
+    findings: list[Finding] = []
+    for a in assignments:
+        slot = ctx.slots.get(a.slot_id)
+        if slot is None or not ctx.course_rooms.get(a.course_id):
+            continue  # 優先教室が登録されていない授業は判定しない
+        if ctx.room_priority(a.course_id, a.room_id, slot.day) is None:
+            findings.append(Finding(
+                "教室", WARNING,
+                f"{slot.label}「{ctx.course_name(a.course_id)}」:{ctx.room_name(a.room_id)}教室は優先・予備教室ではありません。"
+                f"事前に講師へ動作確認を依頼してください", (a.assignment_id,)))
     return findings
 
 

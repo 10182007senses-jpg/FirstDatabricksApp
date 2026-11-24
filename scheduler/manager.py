@@ -9,7 +9,9 @@ import io
 from dataclasses import dataclass
 from datetime import date, datetime
 
-from . import llm, messages, reasons, rules, solver
+import json
+
+from . import llm, messages, reasons, rules, sheet_import, solver
 from .data_access import Repo, month_range
 from .models import LABEL_PERIOD, PERIOD_LABEL, Assignment, Context, slot_id_of
 
@@ -174,11 +176,31 @@ def _parse_period(text: str) -> list[str]:
     return [text.upper()] if text.upper() in ("AM", "PM") else []
 
 
+def _match_name(name: str, by_name: dict[str, str], ambiguous: set[str]) -> str | None:
+    """フォームの名前(フルネーム)と、マスターの名前(名字だけのことが多い)を照合する。"""
+    if name in by_name:
+        return by_name[name]
+    hits = {tid for key, tid in by_name.items() if key and (name.startswith(key) or key.startswith(name))}
+    if len(hits) == 1:
+        return hits.pop()
+    if len(hits) > 1:
+        ambiguous.add(name)
+    return None
+
+
 def import_availability(repo: Repo, month: str, records: list[dict], replace: bool = True) -> tuple[int, list[str]]:
-    """対応可能日を取り込む。records の各行: {"name", "day", "period"}。(取り込み件数, 注意点) を返す。"""
+    """対応可能日を取り込む。records の各行: {"name", "day", "period", "email"(任意)}。
+
+    講師はメールアドレスで照合し、なければ名前で照合する(フォームの名前は自由記述で表記が揺れるため)。
+    名前で照合できた講師のメールアドレスは覚えておき、次回からはメールアドレスで照合する。
+    (取り込み件数, 注意点) を返す。
+    """
     bundle = repo.load(month)
     ctx = bundle.ctx
     by_name = {_norm_name(t.name): t.teacher_id for t in ctx.teachers.values()}
+    by_email = {t.email.lower(): t.teacher_id for t in ctx.teachers.values() if t.email}
+    learned: dict[str, str] = {}
+    ambiguous: set[str] = set()
     first, last = month_range(month)
     pairs: set[tuple[str, str]] = set() if replace else set(ctx.availability)
     unknown: set[str] = set()
@@ -193,7 +215,12 @@ def import_availability(repo: Repo, month: str, records: list[dict], replace: bo
             continue
         if not (first <= day <= last):
             continue
-        teacher_id = by_name.get(_norm_name(rec["name"]))
+        email = str(rec.get("email") or "").strip().lower()
+        teacher_id = by_email.get(email) if email else None
+        if teacher_id is None:
+            teacher_id = _match_name(_norm_name(rec["name"]), by_name, ambiguous)
+            if teacher_id and email and not ctx.teachers[teacher_id].email:
+                learned[teacher_id] = email
         if teacher_id is None:
             unknown.add(str(rec["name"]))
             continue
@@ -205,6 +232,10 @@ def import_availability(repo: Repo, month: str, records: list[dict], replace: bo
                 no_slot.add(f"{day.month}/{day.day} {PERIOD_LABEL[period]}")
 
     notes = []
+    if ambiguous:
+        notes.append("同じ名字の講師が複数いて決められなかった名前:" + "、".join(sorted(ambiguous))
+                     + "。マスターの講師名をフルネームにするか、メールアドレスを登録してください")
+    unknown -= ambiguous
     if unknown:
         notes.append("講師マスターにない名前を読み飛ばしました:" + "、".join(sorted(unknown)))
     if no_slot:
@@ -212,6 +243,12 @@ def import_availability(repo: Repo, month: str, records: list[dict], replace: bo
     if bad:
         notes.append(f"日付または時間帯を読み取れない行が{bad}件ありました")
     before = len(ctx.availability) if not replace else 0
+    if learned:
+        rows = repo.read("teacher")
+        for r in rows:
+            if r["teacher_id"] in learned:
+                r["email"] = learned[r["teacher_id"]]
+        repo.replace("teacher", rows)
     repo.save_availability(month, pairs)
     return len(pairs) - before, notes
 
@@ -223,7 +260,44 @@ def import_availability_from_form(repo: Repo, month: str) -> tuple[int, list[str
     if not raw:
         return 0, ["この月のフォーム回答はまだ届いていません"]
     return import_availability(
-        repo, month, [{"name": r["teacher_name"], "day": r["day"], "period": r["period"]} for r in raw])
+        repo, month, [{"name": r["teacher_name"], "day": r["day"], "period": r["period"],
+                       "email": r.get("teacher_email")} for r in raw])
+
+
+def import_availability_from_book(repo: Repo, month: str, book: dict[str, list[list]]) -> tuple[int, list[str]]:
+    """フォームの回答のスプレッドシート(Excel)から取り込む。"""
+    rows = sheet_import.pick_sheet(book, sheet_import.FORM_SHEET) or next(iter(book.values()), [])
+    records, notes = sheet_import.parse_form_rows(rows, month)
+    n, more = import_availability(repo, month, records)
+    return n, notes + more
+
+
+# ---------------------------------------------------------------- F2: 調整共有シートからマスターを取り込む
+
+def import_masters(repo: Repo, course_rows: list[list], room_rows: list[list]) -> tuple[dict[str, int], list[str]]:
+    existing = {t: repo.read(t) for t in ("course", "teacher")}
+    result = sheet_import.parse_shared_sheet(course_rows, room_rows, existing)
+    for table, rows in result.tables.items():
+        repo.replace(table, rows)
+    return {t: len(r) for t, r in result.tables.items()}, result.notes
+
+
+def import_masters_from_book(repo: Repo, book: dict[str, list[list]]) -> tuple[dict[str, int], list[str]]:
+    course_rows = sheet_import.pick_sheet(book, sheet_import.COURSE_SHEET)
+    room_rows = sheet_import.pick_sheet(book, sheet_import.ROOM_SHEET)
+    if course_rows is None or room_rows is None:
+        raise ValueError("「体験授業一覧」と「教室」のシートが見つかりません。調整共有シートを選んでください")
+    return import_masters(repo, course_rows, room_rows)
+
+
+def import_masters_from_sheet_raw(repo: Repo) -> tuple[dict[str, int], list[str]]:
+    """Apps Script が sheet_raw に書き込んだ調整共有シートの行から取り込む。"""
+    book: dict[str, list] = {}
+    for r in sorted(repo.read("sheet_raw"), key=lambda r: (r["sheet_name"], r["row_no"] or 0)):
+        book.setdefault(r["sheet_name"], []).append(json.loads(r["cells_json"] or "[]"))
+    if not book:
+        raise ValueError("調整共有シートの内容がまだ届いていません(Apps Script の設定を確認してください)")
+    return import_masters_from_book(repo, book)
 
 
 def parse_availability_csv(text: str) -> list[dict]:

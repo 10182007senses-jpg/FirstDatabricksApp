@@ -24,32 +24,39 @@
 <text x="930.0" y="303.5" font-size="17" fill="#fff" font-weight="bold" text-anchor="middle">Googleフォーム</text>
 <text x="930.0" y="320.5" font-size="11" fill="#fff" font-weight="normal" text-anchor="middle">[外部システム]</text>
 <text x="930.0" y="347.5" font-size="12" fill="#fff" font-weight="normal" text-anchor="middle">講師の対応可能日を集める</text>
+<rect x="40" y="250" width="230" height="130" rx="6" fill="#999999" stroke="#2b6cb0" stroke-opacity=".5"/>
+<text x="155.0" y="295.0" font-size="17" fill="#fff" font-weight="bold" text-anchor="middle">調整共有シート</text>
+<text x="155.0" y="312.0" font-size="11" fill="#fff" font-weight="normal" text-anchor="middle">[外部システム: Googleスプレッドシート]</text>
+<text x="155.0" y="339.0" font-size="12" fill="#fff" font-weight="normal" text-anchor="middle">体験授業一覧・教室を</text>
+<text x="155.0" y="356.0" font-size="12" fill="#fff" font-weight="normal" text-anchor="middle">先生が入力する</text>
 <rect x="20" y="440" width="1060" height="540" fill="none" stroke="#666" stroke-dasharray="8 6"/>
 <text x="30" y="954" font-size="14" fill="#222" font-weight="bold" text-anchor="start">体験授業調整AI</text>
 <text x="30" y="970" font-size="11" fill="#444" font-weight="normal" text-anchor="start">[Software System]</text>
 <rect x="40" y="500" width="340" height="170" rx="6" fill="#438DD5" stroke="#2b6cb0" stroke-opacity=".5"/>
 <text x="210.0" y="556.5" font-size="17" fill="#fff" font-weight="bold" text-anchor="middle">Webアプリ</text>
 <text x="210.0" y="573.5" font-size="11" fill="#fff" font-weight="normal" text-anchor="middle">[Container: Databricks Apps / Dash(Python)]</text>
-<text x="210.0" y="600.5" font-size="12" fill="#fff" font-weight="normal" text-anchor="middle">開催枠・対応可能日・使えない教室の登録、</text>
-<text x="210.0" y="617.5" font-size="12" fill="#fff" font-weight="normal" text-anchor="middle">割り当て案の作成とルール判定、</text>
-<text x="210.0" y="634.5" font-size="12" fill="#fff" font-weight="normal" text-anchor="middle">理由・連絡文の下書き、マスター登録</text>
+<text x="210.0" y="600.5" font-size="12" fill="#fff" font-weight="normal" text-anchor="middle">開催枠・イベント名・対応可能日・使えない教室、</text>
+<text x="210.0" y="617.5" font-size="12" fill="#fff" font-weight="normal" text-anchor="middle">シートの取り込み、割り当て案の作成と</text>
+<text x="210.0" y="634.5" font-size="12" fill="#fff" font-weight="normal" text-anchor="middle">ルール判定、理由・連絡文の下書き</text>
 <rect x="740" y="500" width="310" height="150" rx="6" fill="#438DD5" stroke="#2b6cb0" stroke-opacity=".5"/>
-<text x="895.0" y="555.0" font-size="17" fill="#fff" font-weight="bold" text-anchor="middle">回答の取り込み</text>
+<text x="895.0" y="555.0" font-size="17" fill="#fff" font-weight="bold" text-anchor="middle">データの取り込み</text>
 <text x="895.0" y="572.0" font-size="11" fill="#fff" font-weight="normal" text-anchor="middle">[Container: Google Apps Script]</text>
-<text x="895.0" y="599.0" font-size="12" fill="#fff" font-weight="normal" text-anchor="middle">フォーム送信時に、回答を</text>
-<text x="895.0" y="616.0" font-size="12" fill="#fff" font-weight="normal" text-anchor="middle">availability_raw テーブルへ書き込む</text>
+<text x="895.0" y="599.0" font-size="12" fill="#fff" font-weight="normal" text-anchor="middle">フォーム送信時・シート更新時に、</text>
+<text x="895.0" y="616.0" font-size="12" fill="#fff" font-weight="normal" text-anchor="middle">availability_raw / sheet_raw へ書き込む</text>
 <path d="M740,774 a155.0,14 0 0 1 310,0 v142 a155.0,14 0 0 1 -310,0 z" fill="#438DD5"/><path d="M740,774 a155.0,14 0 0 0 310,0" fill="none" stroke="#fff" stroke-opacity=".5"/>
 <text x="895.0" y="826.5" font-size="17" fill="#fff" font-weight="bold" text-anchor="middle">テーブル群</text>
 <text x="895.0" y="843.5" font-size="11" fill="#fff" font-weight="normal" text-anchor="middle">[Container: Delta Lake / Unity Catalog]</text>
-<text x="895.0" y="870.5" font-size="12" fill="#fff" font-weight="normal" text-anchor="middle">マスター9種・開催枠・月次データ6種、</text>
+<text x="895.0" y="870.5" font-size="12" fill="#fff" font-weight="normal" text-anchor="middle">マスター11種・開催枠・開催日・月次データ6種、</text>
 <text x="895.0" y="887.5" font-size="12" fill="#fff" font-weight="normal" text-anchor="middle">フォーム回答・週の目安・設定</text>
 <text x="895.0" y="904.5" font-size="12" fill="#fff" font-weight="normal" text-anchor="middle">(スキーマ workspace.trial_class_scheduler)</text>
 <rect x="40" y="1040" width="340" height="110" rx="6" fill="#999999" stroke="#2b6cb0" stroke-opacity=".5"/>
 <text x="210.0" y="1083.5" font-size="17" fill="#fff" font-weight="bold" text-anchor="middle">LLM</text>
 <text x="210.0" y="1100.5" font-size="11" fill="#fff" font-weight="normal" text-anchor="middle">[外部システム: Foundation Model API]</text>
 <text x="210.0" y="1127.5" font-size="12" fill="#fff" font-weight="normal" text-anchor="middle">理由文とあいさつ文を整える(なくても動く)</text>
-<path d="M110,180 L110,500" fill="none" stroke="#707070" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#head)"/>
-<path d="M230,500 L230,180" fill="none" stroke="#707070" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#head)"/>
+<path d="M310,180 L310,500" fill="none" stroke="#707070" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#head)"/>
+<path d="M360,500 L360,140 L280,140" fill="none" stroke="#707070" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#head)"/>
+<path d="M130,180 L130,250" fill="none" stroke="#707070" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#head)"/>
+<path d="M130,380 L130,415 L760,415 L760,500" fill="none" stroke="#707070" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#head)"/>
 <path d="M280,100 L410,100" fill="none" stroke="#707070" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#head)"/>
 <path d="M660,100 L810,100" fill="none" stroke="#707070" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#head)"/>
 <path d="M535,160 L535,260" fill="none" stroke="#707070" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#head)"/>
@@ -59,14 +66,20 @@
 <path d="M380,585 L560,585 L560,850 L740,850" fill="none" stroke="#707070" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#head)"/>
 <path d="M210,670 L210,1040" fill="none" stroke="#707070" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#head)" marker-start="url(#tail)"/>
 <text x="4" y="1170" font-size="16" fill="#000" font-weight="bold" text-anchor="start">コンテナ図:体験授業調整システム(コードから作成・エージェントなし)</text>
-<text x="4" y="1190" font-size="11.5" fill="#444" font-weight="normal" text-anchor="start">補足:対応可能日はフォーム経由のほか、Webアプリの CSV 取り込み・画面入力でも登録できる。ローカル確認時はテーブル群の代わりに SQLite を使う。</text>
-<rect x="74.75" y="280" width="70.5" height="38" fill="#fff" fill-opacity=".9"/>
-<text x="110" y="294" font-size="12" fill="#222" font-weight="bold" text-anchor="middle">操作する</text>
-<text x="110" y="310" font-size="10.5" fill="#444" font-weight="normal" text-anchor="middle">[HTTPS]</text>
-<rect x="195.5" y="352" width="133.0" height="54" fill="#fff" fill-opacity=".9"/>
-<text x="262" y="366" font-size="12" fill="#222" font-weight="bold" text-anchor="middle">割り当て案・理由・</text>
-<text x="262" y="382" font-size="12" fill="#222" font-weight="bold" text-anchor="middle">連絡文の下書きを表示</text>
-<text x="262" y="398" font-size="10.5" fill="#444" font-weight="normal" text-anchor="middle">[画面・コピーボタン]</text>
+<text x="4" y="1190" font-size="11.5" fill="#444" font-weight="normal" text-anchor="start">補足:フォーム回答と調整共有シートは、Webアプリから Excel を選んで取り込むこともできる。ローカル確認時はテーブル群の代わりに SQLite を使う。</text>
+<rect x="274.75" y="195" width="70.5" height="38" fill="#fff" fill-opacity=".9"/>
+<text x="310" y="209" font-size="12" fill="#222" font-weight="bold" text-anchor="middle">操作する</text>
+<text x="310" y="225" font-size="10.5" fill="#444" font-weight="normal" text-anchor="middle">[HTTPS]</text>
+<rect x="283.5" y="440" width="133.0" height="54" fill="#fff" fill-opacity=".9"/>
+<text x="350" y="454" font-size="12" fill="#222" font-weight="bold" text-anchor="middle">割り当て案・理由・</text>
+<text x="350" y="470" font-size="12" fill="#222" font-weight="bold" text-anchor="middle">連絡文の下書きを表示</text>
+<text x="350" y="486" font-size="10.5" fill="#444" font-weight="normal" text-anchor="middle">[画面・コピーボタン]</text>
+<rect x="101.0" y="194" width="58.0" height="38" fill="#fff" fill-opacity=".9"/>
+<text x="130" y="208" font-size="12" fill="#222" font-weight="bold" text-anchor="middle">入力する</text>
+<text x="130" y="224" font-size="10.5" fill="#444" font-weight="normal" text-anchor="middle">[手動]</text>
+<rect x="493.5" y="395" width="133.0" height="38" fill="#fff" fill-opacity=".9"/>
+<text x="560" y="409" font-size="12" fill="#222" font-weight="bold" text-anchor="middle">更新時に行を書き込む</text>
+<text x="560" y="425" font-size="10.5" fill="#444" font-weight="normal" text-anchor="middle">[トリガー]</text>
 <rect x="297.25" y="58" width="95.5" height="38" fill="#fff" fill-opacity=".9"/>
 <text x="345" y="72" font-size="12" fill="#222" font-weight="bold" text-anchor="middle">コピペして送信</text>
 <text x="345" y="88" font-size="10.5" fill="#444" font-weight="normal" text-anchor="middle">[手動]</text>

@@ -33,6 +33,7 @@ class Teacher:
     teacher_id: str
     name: str
     active: bool = True
+    email: str | None = None
 
 
 @dataclass(frozen=True)
@@ -46,7 +47,24 @@ class Genre:
 class Course:
     course_id: str
     name: str
-    genre_id: str
+    genre_id: str | None
+    capacity: int | None = None
+    note: str = ""
+
+
+MAIN = "main"  # 体験授業一覧の「優先して入れる教室」
+BACKUP = "backup"  # 体験授業一覧の「予備教室」
+PRIORITY_LABEL = {MAIN: "優先", BACKUP: "予備"}
+
+
+@dataclass(frozen=True)
+class RoomAlternative:
+    """期間限定で使える代わりの教室(R11。例:工事中は 402 の授業を第三校舎の教室でも行う)。"""
+
+    room_id: str
+    alt_room_id: str
+    valid_until: date | None = None
+    note: str = ""
 
 
 @dataclass(frozen=True)
@@ -125,7 +143,10 @@ class Context:
     teacher_courses: dict[str, set[str]] = field(default_factory=dict)
     software: dict[str, str] = field(default_factory=dict)  # id -> 名前
     course_software: dict[str, set[str]] = field(default_factory=dict)
-    rooms: dict[str, str] = field(default_factory=dict)  # id -> 名前
+    rooms: dict[str, str] = field(default_factory=dict)  # id -> 名前(使える教室だけ)
+    course_rooms: dict[str, dict[str, str]] = field(default_factory=dict)  # 授業 -> {教室: main/backup}
+    room_alternatives: list[RoomAlternative] = field(default_factory=list)
+    events: dict[date, str] = field(default_factory=dict)  # 開催日 -> イベント名
     room_software: list[RoomSoftware] = field(default_factory=list)
     slots: dict[str, Slot] = field(default_factory=dict)
     availability: set[tuple[str, str]] = field(default_factory=set)  # (teacher_id, slot_id)
@@ -151,6 +172,26 @@ class Context:
     def genre_name(self, genre_id: str) -> str:
         g = self.genres.get(genre_id)
         return g.name if g else f"(不明:{genre_id})"
+
+    def room_priority(self, course_id: str, room_id: str, day: date) -> str | None:
+        """その授業にとって、その教室が優先・予備のどちらか。どちらでもなければ None。
+
+        R11: 代わりの教室は、期限までは元の教室と同じ扱いにする。
+        """
+        listed = self.course_rooms.get(course_id, {})
+        if room_id in listed:
+            return listed[room_id]
+        found = None
+        for alt in self.room_alternatives:
+            if alt.alt_room_id == room_id and (alt.valid_until is None or day <= alt.valid_until) \
+                    and alt.room_id in listed:
+                if listed[alt.room_id] == MAIN:
+                    return MAIN
+                found = BACKUP
+        return found
+
+    def event_name(self, day: date) -> str:
+        return self.events.get(day, "")
 
     def genre_of(self, course_id: str) -> str | None:
         c = self.courses.get(course_id)

@@ -1,6 +1,10 @@
 """体験授業調整AI — Databricks Apps(Dash)の画面。
 
 画面は表示と操作だけを担当し、計算は scheduler/manager.py の関数を呼びます。
+
+見た目は Dash Mantine Components(assets/theme.py の THEME)でそろえています。
+トーン&マナー:静かで整った業務ツール。白地に濃いグレーの文字、色は落ち着いた青1色だけ。
+表は細い罫線で余白を広めに。違反は赤ではなく、注意を示すオレンジのバッジで出します。
 """
 from __future__ import annotations
 
@@ -13,15 +17,19 @@ import time
 from datetime import date
 
 import dash
-import dash_bootstrap_components as dbc
+import dash_mantine_components as dmc
 from dash import ALL, MATCH, Input, Output, State, ctx, dash_table, dcc, html
 from dash.exceptions import PreventUpdate
 
-from scheduler import llm, manager, messages, sample_data
-from scheduler.data_access import MASTER_TABLES, STATUS_LABEL, Repo, month_range
-from scheduler.models import PERIOD_LABEL, WEEKDAYS, Settings, slot_id_of
+from scheduler import llm, manager, messages, sample_data, sheet_import
+from scheduler.data_access import STATUS_LABEL, Repo
+from scheduler.models import PERIOD_LABEL, PRIORITY_LABEL, WEEKDAYS, Settings, slot_id_of
 from scheduler.rules import week_label
 from scheduler.solver import new_id
+from theme import ACCENT, BORDER, MUTED, TABLE_STYLE, THEME
+
+# Dash 2 系で Mantine(React 18 が必要)を使うための設定
+dash._dash_renderer._set_react_version("18.2.0")
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger("app")
@@ -46,29 +54,14 @@ def ensure_schema() -> None:
 ensure_schema()
 llm_client = llm.LLMClient()
 
-# Bootstrap の CSS は assets/ に同梱(学内ネットワークから外部 CDN に届かなくても表示が崩れないように)
-app = dash.Dash(
-    __name__,
-    suppress_callback_exceptions=True,
-    title="体験授業調整AI",
-    update_title=None,
-)
+app = dash.Dash(__name__, suppress_callback_exceptions=True, title="体験授業調整AI", update_title=None)
 server = app.server
-
-YES_NO = [{"label": "はい", "value": "はい"}, {"label": "いいえ", "value": "いいえ"}]
-TABLE_STYLE = dict(
-    style_cell={"fontFamily": "inherit", "fontSize": "14px", "padding": "6px 10px", "textAlign": "left",
-                "whiteSpace": "normal", "height": "auto", "minWidth": "140px"},
-    style_header={"fontWeight": "600", "backgroundColor": "#f3f4f6"},
-    style_table={"overflowX": "auto"},
-    css=[{"selector": ".Select-menu-outer", "rule": "display: block !important"}],
-)
 
 
 # ================================================================ 共通の部品
 
 def default_month() -> tuple[int, int]:
-    """調整は対象月の約2か月前に行うので、初期表示は2か月先。"""
+    """調整は対象月の約2か月前に行うので(ルール一覧 No.2)、初期表示は2か月先。"""
     today = date.today()
     m = today.month + 2
     return today.year + (m - 1) // 12, (m - 1) % 12 + 1
@@ -82,11 +75,15 @@ def short_slot(slot) -> str:
     return f"{slot.day.month}/{slot.day.day}({WEEKDAYS[slot.day.weekday()]}) {PERIOD_LABEL[slot.period]}"
 
 
-def alert(text, color="success", notes=None):
-    body = [html.Div(text)]
+ALERT_COLOR = {"success": "teal", "info": "blue", "warning": "orange", "danger": "orange", "secondary": "gray"}
+
+
+def alert(text, color="success", notes=None, title=None):
+    body = [dmc.Text(text, size="sm")]
     if notes:
-        body.append(html.Ul([html.Li(n) for n in notes], className="mb-0 mt-1"))
-    return dbc.Alert(body, color=color, dismissable=True, className="mb-3")
+        body.append(dmc.List([dmc.ListItem(dmc.Text(n, size="sm")) for n in notes], mt=4, size="sm"))
+    return dmc.Alert(body, title=title, color=ALERT_COLOR.get(color, color), variant="light",
+                     withCloseButton=True, radius="md", mb="md")
 
 
 def done(text, color="success", notes=None):
@@ -114,11 +111,21 @@ NOTICE = [Output("notice", "children", allow_duplicate=True), Output("refresh", 
 MONTH_STATE = [State("year", "value"), State("month", "value")]
 
 
-def card(title, *children, hint=None):
-    head = [html.H5(title, className="mb-1")]
+def section(title, *children, hint=None, step=None, right=None):
+    """白いカード1枚=作業のひとまとまり。見出し・説明・中身の順に並べる。"""
+    head = [dmc.Group([
+        dmc.Group([dmc.Badge(step, variant="outline", color="gray", radius="sm") if step else None,
+                   dmc.Title(title, order=4, fw=600)], gap="xs"),
+        right,
+    ], justify="space-between", align="center")]
     if hint:
-        head.append(html.Div(hint, className="text-muted small mb-2"))
-    return dbc.Card(dbc.CardBody(head + list(children)), className="mb-3 shadow-sm")
+        head.append(dmc.Text(hint, size="sm", c="dimmed", mt=4))
+    return dmc.Paper(head + [html.Div(list(children), style={"marginTop": 16})],
+                     withBorder=True, radius="md", p="lg", mb="md")
+
+
+def button(label, id, primary=False, **kw):
+    return dmc.Button(label, id=id, variant="filled" if primary else "default", size="sm", radius="md", **kw)
 
 
 def decode_upload(contents: str) -> str:
@@ -131,42 +138,58 @@ def decode_upload(contents: str) -> str:
     raise ValueError("CSV の文字コードを読み取れません(UTF-8 か Shift_JIS で保存してください)")
 
 
-def upload_button(component_id, label):
-    return dcc.Upload(dbc.Button(label, color="secondary", outline=True, size="sm"),
-                      id=component_id, accept=".csv", className="d-inline-block")
+def upload_bytes(contents: str) -> bytes:
+    return base64.b64decode(contents.split(",", 1)[1])
+
+
+def upload_button(component_id, label, accept=".csv"):
+    return dcc.Upload(dmc.Button(label, variant="default", size="sm", radius="md"),
+                      id=component_id, accept=accept, style={"display": "inline-block"})
+
+
+def stat(label, n, warn=False):
+    color = "orange" if warn and n else "dark"
+    return dmc.Paper([
+        dmc.Text(label, size="xs", c="dimmed"),
+        dmc.Text(str(n), fw=600, size="xl", c=color),
+    ], withBorder=True, radius="md", px="md", py="sm", style={"minWidth": 150})
 
 
 # ================================================================ 全体のレイアウト
 
+STEPS = [("prep", "① 準備"), ("plan", "② 割り当て案"), ("msg", "③ 連絡文"), ("master", "マスター"),
+         ("settings", "設定")]
+
+
 def layout():
     ensure_schema()
     y, m = default_month()
-    years = [{"label": f"{v}年", "value": v} for v in range(y - 2, y + 2)]
-    months = [{"label": f"{v}月", "value": v} for v in range(1, 13)]
-    return dbc.Container([
-        dcc.Store(id="refresh", data=0),
-        dcc.Download(id="download"),
-        dbc.Row([
-            dbc.Col(html.H3("体験授業調整AI", className="mb-0"), width="auto"),
-            dbc.Col(html.Div("対象月", className="text-muted small"), width="auto", className="ms-4"),
-            dbc.Col(dbc.Select(id="year", options=years, value=y, size="sm"), width="auto"),
-            dbc.Col(dbc.Select(id="month", options=months, value=m, size="sm"), width="auto"),
-            dbc.Col(html.Div(id="status"), width="auto"),
-            dbc.Col(html.Div(
-                f"保存先:{repo.db.label} / 文章生成AI:{'利用可' if llm_client.available else '未設定(定型文で動作)'}",
-                className="text-muted small text-end")),
-        ], align="center", className="py-3 border-bottom mb-3 g-2"),
-        dbc.Alert(f"テーブルの準備に失敗しました:{STARTUP_ERROR}", color="danger") if STARTUP_ERROR else None,
-        dbc.Tabs(id="tabs", active_tab="prep", className="mb-3", children=[
-            dbc.Tab(label="① 準備", tab_id="prep"),
-            dbc.Tab(label="② 割り当て案", tab_id="plan"),
-            dbc.Tab(label="③ 連絡文", tab_id="msg"),
-            dbc.Tab(label="マスター登録", tab_id="master"),
-            dbc.Tab(label="設定", tab_id="settings"),
-        ]),
-        html.Div(id="notice"),
-        dcc.Loading(html.Div(id="content"), type="dot", delay_show=400),
-    ], fluid=True, className="px-4 pb-5")
+    years = [{"label": f"{v}年", "value": str(v)} for v in range(y - 2, y + 2)]
+    months = [{"label": f"{v}月", "value": str(v)} for v in range(1, 13)]
+    header = dmc.Group([
+        dmc.Group([
+            dmc.Title("体験授業調整AI", order=3, fw=700),
+            dmc.Divider(orientation="vertical"),
+            dmc.Text("対象月", size="sm", c="dimmed"),
+            dmc.Select(id="year", data=years, value=str(y), w=100, size="sm", allowDeselect=False),
+            dmc.Select(id="month", data=months, value=str(m), w=80, size="sm", allowDeselect=False),
+            html.Div(id="status"),
+        ], gap="sm"),
+        dmc.Text(f"保存先:{repo.db.label}  ·  文章生成AI:{'利用可' if llm_client.available else '未設定(定型文で動作)'}",
+                 size="xs", c="dimmed"),
+    ], justify="space-between", h="100%", px="xl")
+    return dmc.MantineProvider(theme=THEME, children=dmc.AppShell([
+        dmc.AppShellHeader(header, style={"borderBottom": f"1px solid {BORDER}"}),
+        dmc.AppShellMain(dmc.Container([
+            dcc.Store(id="refresh", data=0),
+            dcc.Download(id="download"),
+            alert(f"テーブルの準備に失敗しました:{STARTUP_ERROR}", "danger") if STARTUP_ERROR else None,
+            dmc.Tabs(dmc.TabsList([dmc.TabsTab(label, value=key) for key, label in STEPS]),
+                     id="tabs", value="prep", variant="default", mb="lg"),
+            html.Div(id="notice"),
+            dcc.Loading(html.Div(id="content"), type="dot", delay_show=400, color=ACCENT),
+        ], size="xl", py="lg")),
+    ], header={"height": 60}, padding=0))
 
 
 app.layout = layout
@@ -174,7 +197,7 @@ app.layout = layout
 
 @app.callback(
     Output("content", "children"), Output("status", "children"),
-    Input("tabs", "active_tab"), Input("year", "value"), Input("month", "value"), Input("refresh", "data"),
+    Input("tabs", "value"), Input("year", "value"), Input("month", "value"), Input("refresh", "data"),
 )
 def render(tab, year, month, _):
     try:
@@ -184,12 +207,12 @@ def render(tab, year, month, _):
     except Exception as exc:
         log.exception("画面の表示に失敗しました")
         return alert(f"データを読み込めませんでした:{exc}", "danger"), ""
-    color = {"preparing": "secondary", "draft": "warning", "confirmed": "success", "contacted": "primary"}
-    badge = dbc.Badge(STATUS_LABEL[bundle.status], color=color[bundle.status], className="fs-6")
+    color = {"preparing": "gray", "draft": "orange", "confirmed": "teal", "contacted": "blue"}
+    badge = dmc.Badge(STATUS_LABEL[bundle.status], color=color[bundle.status], variant="light", radius="sm")
     return body, badge
 
 
-@app.callback(Output("notice", "children"), Input("tabs", "active_tab"), Input("year", "value"),
+@app.callback(Output("notice", "children"), Input("tabs", "value"), Input("year", "value"),
               Input("month", "value"), prevent_initial_call=True)
 def clear_notice(*_):
     return None
@@ -200,43 +223,51 @@ def clear_notice(*_):
 def prep_tab(bundle):
     c = bundle.ctx
     if not c.teachers or not c.rooms or not c.courses:
-        return alert("先に「マスター登録」で講師・体験授業・教室・ソフトを登録してください。"
-                     "動きを試すだけなら、マスター登録の「デモデータを入れる」が使えます。", "info")
+        return alert("先に「マスター」で調整共有シート(体験授業一覧・教室)を取り込んでください。"
+                     "動きを試すだけなら、マスターの「デモデータを入れる」が使えます。", "info")
     return html.Div([slot_card(bundle), availability_card(bundle), block_card(bundle), target_card(bundle)])
 
 
 def slot_card(bundle):
+    c = bundle.ctx
     year, month = int(bundle.month[:4]), int(bundle.month[5:7])
-    picked = set(bundle.ctx.slots)
+    picked = set(c.slots)
+    head = dmc.TableThead(dmc.TableTr([dmc.TableTh(w, style={"textAlign": "center"}) for w in WEEKDAYS]))
     rows = []
     for week in calendar.Calendar(firstweekday=0).monthdatescalendar(year, month):
         cells = []
         for d in week:
             if d.month != month:
-                cells.append(html.Td(className="bg-light"))
+                cells.append(dmc.TableTd(style={"background": "#fafafa"}))
                 continue
-            boxes = [
-                dbc.Checkbox(id={"type": "slot", "key": slot_id_of(d, p)}, label=PERIOD_LABEL[p],
-                             value=slot_id_of(d, p) in picked, className="small mb-0")
-                for p in ("AM", "PM")
-            ]
-            cells.append(html.Td([html.Div(str(d.day), className="fw-bold")] + boxes,
-                                 className="table-warning" if d.weekday() >= 5 else ""))
-        rows.append(html.Tr(cells))
-    table = dbc.Table([html.Thead(html.Tr([html.Th(w) for w in WEEKDAYS])), html.Tbody(rows)],
-                      bordered=True, size="sm", className="mb-2", style={"tableLayout": "fixed"})
-    return card(
-        "1. 開催日と時間枠",
+            weekend = d.weekday() >= 5
+            cells.append(dmc.TableTd(dmc.Stack([
+                dmc.Text(str(d.day), fw=600, size="sm", c=ACCENT if weekend else None),
+                dmc.Checkbox(id={"type": "slot", "key": slot_id_of(d, "AM")}, label="午前", size="xs",
+                             checked=slot_id_of(d, "AM") in picked),
+                dmc.Checkbox(id={"type": "slot", "key": slot_id_of(d, "PM")}, label="午後", size="xs",
+                             checked=slot_id_of(d, "PM") in picked),
+                dmc.TextInput(id={"type": "event", "day": d.isoformat()}, value=c.event_name(d),
+                              placeholder="イベント名", size="xs"),
+            ], gap=4), style={"verticalAlign": "top"}))
+        rows.append(dmc.TableTr(cells))
+    table = dmc.Table([head, dmc.TableTbody(rows)], withTableBorder=True, withColumnBorders=True,
+                      style={"tableLayout": "fixed"}, mb="sm")
+    return section(
+        "開催日と時間枠",
         table,
-        dbc.Button("土日をまとめて選ぶ", id="slots-weekend", color="secondary", outline=True, size="sm",
-                   className="me-2"),
-        dbc.Button("すべて外す", id="slots-clear", color="secondary", outline=True, size="sm", className="me-2"),
-        dbc.Button("開催枠を保存", id="slots-save", color="primary", size="sm"),
-        hint="体験授業を開催する日の午前・午後にチェックを入れます。3・7・8月は平日も選べます。",
+        dmc.Group([
+            button("土日をまとめて選ぶ", "slots-weekend"),
+            button("すべて外す", "slots-clear"),
+            button("開催枠を保存", "slots-save", primary=True),
+        ], gap="xs"),
+        step="1",
+        hint="開催する日の午前・午後にチェックを入れ、早見表のイベント名(例:ゲームお仕事体験W)を書きます。"
+             "授業は 10:20〜11:50/13:30〜15:00。3・7・8月は平日も選べます。",
     )
 
 
-@app.callback(Output({"type": "slot", "key": ALL}, "value"),
+@app.callback(Output({"type": "slot", "key": ALL}, "checked"),
               Input("slots-weekend", "n_clicks"), Input("slots-clear", "n_clicks"),
               State({"type": "slot", "key": ALL}, "id"), prevent_initial_call=True)
 def pick_slots(_w, _c, ids):
@@ -248,12 +279,18 @@ def pick_slots(_w, _c, ids):
 
 
 @app.callback(*NOTICE, Input("slots-save", "n_clicks"),
-              State({"type": "slot", "key": ALL}, "value"), State({"type": "slot", "key": ALL}, "id"),
+              State({"type": "slot", "key": ALL}, "checked"), State({"type": "slot", "key": ALL}, "id"),
+              State({"type": "event", "day": ALL}, "value"), State({"type": "event", "day": ALL}, "id"),
               *MONTH_STATE, prevent_initial_call=True)
 @action
-def save_slots(_, values, ids, year, month):
+def save_slots(_, values, ids, names, name_ids, year, month):
+    mk = month_key(year, month)
     picks = [(date.fromisoformat(i["key"][:10]), i["key"][11:]) for v, i in zip(values, ids) if v]
-    repo.save_slots(month_key(year, month), picks)
+    days = {d for d, _ in picks}
+    events = {date.fromisoformat(i["day"]): (n or "") for n, i in zip(names, name_ids)
+              if date.fromisoformat(i["day"]) in days}
+    repo.save_slots(mk, picks)
+    repo.save_events(mk, events)
     return done(f"開催枠を{len(picks)}件保存しました。")
 
 
@@ -261,31 +298,34 @@ def availability_card(bundle):
     c = bundle.ctx
     slots = c.sorted_slots()
     if not slots:
-        body = [html.Div("開催枠を保存すると、ここに講師×枠の表が出ます。", className="text-muted")]
+        body = [dmc.Text("開催枠を保存すると、ここに講師×枠の表が出ます。", size="sm", c="dimmed")]
     else:
-        head = html.Tr([html.Th("講師")] + [html.Th(short_slot(s), className="small text-center") for s in slots])
+        head = dmc.TableThead(dmc.TableTr([dmc.TableTh("講師")] + [
+            dmc.TableTh(short_slot(s), style={"textAlign": "center", "fontWeight": 500, "fontSize": 12})
+            for s in slots]))
         rows = []
         for t in sorted(c.teachers.values(), key=lambda t: t.name):
             if not t.active:
                 continue
-            rows.append(html.Tr([html.Td(t.name, className="text-nowrap")] + [
-                html.Td(dbc.Checkbox(id={"type": "av", "t": t.teacher_id, "s": s.slot_id},
-                                     value=(t.teacher_id, s.slot_id) in c.availability),
-                        className="text-center")
+            rows.append(dmc.TableTr([dmc.TableTd(t.name, style={"whiteSpace": "nowrap"})] + [
+                dmc.TableTd(dmc.Center(dmc.Checkbox(id={"type": "av", "t": t.teacher_id, "s": s.slot_id},
+                                                    checked=(t.teacher_id, s.slot_id) in c.availability,
+                                                    size="xs")))
                 for s in slots
             ]))
-        body = [html.Div(dbc.Table([html.Thead(head), html.Tbody(rows)], bordered=True, size="sm", hover=True),
-                         style={"overflowX": "auto"})]
-    return card(
-        "2. 講師の対応可能日(F1)",
-        html.Div([
-            dbc.Button("フォームの回答を取り込む", id="av-form", color="secondary", outline=True, size="sm",
-                       className="me-2"),
-            upload_button("av-upload", "CSVから取り込む(講師名, 日付, 時間帯)"),
-        ], className="mb-2 d-flex align-items-center"),
+        body = [dmc.ScrollArea(dmc.Table([head, dmc.TableTbody(rows)], withTableBorder=True,
+                                         highlightOnHover=True, striped=False), type="auto", mb="sm")]
+    return section(
+        "講師の対応可能日",
+        dmc.Group([
+            button("フォームの回答を取り込む", "av-form"),
+            upload_button("av-upload", "回答の Excel / CSV を選ぶ", accept=".xlsx,.csv"),
+        ], gap="xs", mb="sm"),
         *body,
-        dbc.Button("対応可能日を保存", id="av-save", color="primary", size="sm") if slots else None,
-        hint=f"Googleフォームの回答を取り込むか、表に直接チェックを入れます。現在 {len(c.availability)} 件。",
+        button("対応可能日を保存", "av-save", primary=True) if slots else None,
+        step="2",
+        hint=f"Googleフォームの回答(開催日ごとに午前午後/午前のみ/午後のみ/対応不可)を取り込みます。"
+             f"講師はメールアドレス、なければ名前で照合します。現在 {len(c.availability)} 件。",
     )
 
 
@@ -296,16 +336,21 @@ def import_form(_, year, month):
     return done(f"フォームの回答から{n}件を取り込みました。", "success" if n else "warning", notes)
 
 
-@app.callback(*NOTICE, Input("av-upload", "contents"), *MONTH_STATE, prevent_initial_call=True)
+@app.callback(*NOTICE, Input("av-upload", "contents"), State("av-upload", "filename"), *MONTH_STATE,
+              prevent_initial_call=True)
 @action
-def import_csv(contents, year, month):
-    records = manager.parse_availability_csv(decode_upload(contents))
-    n, notes = manager.import_availability(repo, month_key(year, month), records)
-    return done(f"CSVから{n}件を取り込みました。", "success" if n else "warning", notes)
+def import_upload(contents, filename, year, month):
+    mk = month_key(year, month)
+    if str(filename or "").lower().endswith(".xlsx"):
+        n, notes = manager.import_availability_from_book(repo, mk, sheet_import.read_workbook(upload_bytes(contents)))
+    else:
+        records = manager.parse_availability_csv(decode_upload(contents))
+        n, notes = manager.import_availability(repo, mk, records)
+    return done(f"{n}件を取り込みました。", "success" if n else "warning", notes)
 
 
 @app.callback(*NOTICE, Input("av-save", "n_clicks"),
-              State({"type": "av", "t": ALL, "s": ALL}, "value"), State({"type": "av", "t": ALL, "s": ALL}, "id"),
+              State({"type": "av", "t": ALL, "s": ALL}, "checked"), State({"type": "av", "t": ALL, "s": ALL}, "id"),
               *MONTH_STATE, prevent_initial_call=True)
 @action
 def save_availability(_, values, ids, year, month):
@@ -342,15 +387,14 @@ def block_card(bundle):
         },
         **TABLE_STYLE,
     )
-    return card(
-        "3. 使えない教室・日時(F3)",
+    return section(
+        "使えない教室・日時",
         table,
-        html.Div([
-            dbc.Button("行を追加", id="blocks-add", color="secondary", outline=True, size="sm", className="me-2"),
-            dbc.Button("使えない教室を保存", id="blocks-save", color="primary", size="sm"),
-        ], className="mt-2"),
+        dmc.Group([button("行を追加", "blocks-add"), button("使えない教室を保存", "blocks-save", primary=True)],
+                  gap="xs", mt="sm"),
+        step="3",
         hint="教務側の行事(オリエンテーション、保護者会、esports大会など)で使えない教室を登録します。"
-             "ここに登録漏れがあると、割り当て案が行事と重なります。",
+             "登録漏れがあると、割り当て案が行事と重なります。",
     )
 
 
@@ -388,22 +432,23 @@ def target_card(bundle):
     c = bundle.ctx
     weeks = sorted({s.week_key for s in c.slots.values()})
     genres = sorted(c.genres.values(), key=lambda g: g.name)
-    data = [
-        {"week_key": w, "week": week_label(c, w),
-         **{g.genre_id: c.week_targets.get((w, g.genre_id)) for g in genres}}
-        for w in weeks
-    ]
+    data = []
+    for w in weeks:
+        names = sorted({c.event_name(s.day) for s in c.slots.values() if s.week_key == w} - {""})
+        data.append({"week_key": w, "week": week_label(c, w), "event": "・".join(names),
+                     **{g.genre_id: c.week_targets.get((w, g.genre_id)) for g in genres}})
     table = dash_table.DataTable(
         id="targets-table", data=data, editable=True,
-        columns=[{"name": "週", "id": "week", "editable": False}] + [
-            {"name": f"{g.name}系", "id": g.genre_id, "type": "numeric"} for g in genres],
+        columns=[{"name": "週", "id": "week", "editable": False}, {"name": "イベント", "id": "event", "editable": False}]
+        + [{"name": f"{g.name}系", "id": g.genre_id, "type": "numeric"} for g in genres],
         **TABLE_STYLE,
     )
-    return card(
-        "4. 週ごとの打ち出し方の目安(R6・任意)",
+    return section(
+        "週ごとの打ち出し方の目安(任意)",
         table,
-        dbc.Button("目安を保存", id="targets-save", color="primary", size="sm", className="mt-2"),
-        hint="「この週はIT系を多めに」のような方針を、系統ごとのコマ数の目安として入れます。空欄なら考慮しません。",
+        button("目安を保存", "targets-save", primary=True, mt="sm"),
+        step="4",
+        hint="イベント名を手がかりに、「この週はIT系を多めに」のような方針を系統ごとのコマ数で入れます(R6)。空欄なら考慮しません。",
     )
 
 
@@ -414,7 +459,7 @@ def save_targets(_, data, year, month):
     targets = {}
     for row in data or []:
         for key, value in row.items():
-            if key in ("week", "week_key") or value in (None, ""):
+            if key in ("week", "week_key", "event") or value in (None, ""):
                 continue
             targets[(row["week_key"], key)] = int(value)
     repo.save_week_targets(month_key(year, month), targets)
@@ -423,12 +468,20 @@ def save_targets(_, data, year, month):
 
 # ================================================================ ② 割り当て案
 
-def findings_block(title, findings, color):
+FINDING_STYLE = {"must": ("orange", "filled"), "should": ("yellow", "light"), "warning": ("gray", "light")}
+
+
+def findings_block(title, findings, kind):
     if not findings:
         return None
-    return dbc.Alert([html.Strong(title), html.Ul(
-        [html.Li([dbc.Badge(f.rule, color=color, className="me-2"), f.message]) for f in findings],
-        className="mb-0 mt-1")], color=color, className="py-2")
+    color, variant = FINDING_STYLE[kind]
+    return dmc.Paper([
+        dmc.Text(title, fw=600, size="sm", mb="xs"),
+        dmc.Stack([dmc.Group([dmc.Badge(f.rule, color=color, variant=variant, radius="sm", w=56),
+                              dmc.Text(f.message, size="sm", style={"flex": 1})], gap="sm", wrap="nowrap",
+                             align="flex-start")
+                   for f in findings], gap=6),
+    ], withBorder=True, radius="md", p="md", mb="sm")
 
 
 def plan_tab(bundle):
@@ -439,34 +492,28 @@ def plan_tab(bundle):
     rv = manager.review(bundle.assignments, c)
     flagged = {aid for f in rv.must for aid in f.assignment_ids}
 
-    def stat(label, n, color):
-        return dbc.Col(dbc.Card(dbc.CardBody([
-            html.Div(label, className="text-muted small"),
-            html.Div(str(n), className=f"fs-3 fw-bold text-{color if n else 'success'}"),
-        ], className="py-2"), className="shadow-sm"), width="auto")
-
-    buttons = [
-        dbc.Button("割り当て案を作る", id="plan-create", color="primary", className="me-2", disabled=locked),
-        dbc.Button("AIで理由を読みやすくする", id="plan-polish", color="secondary", outline=True, className="me-2",
-                   disabled=locked or not bundle.assignments or not llm_client.available),
-        dbc.Button("確定を解除", id="plan-unconfirm", color="warning", outline=True, className="me-2") if locked
-        else dbc.Button("この内容で確定する", id="plan-confirm", color="success", className="me-2",
+    buttons = dmc.Group([
+        button("割り当て案を作る", "plan-create", primary=True, disabled=locked),
+        button("AIで理由を読みやすくする", "plan-polish",
+               disabled=locked or not bundle.assignments or not llm_client.available),
+        button("確定を解除", "plan-unconfirm") if locked
+        else dmc.Button("この内容で確定する", id="plan-confirm", color="teal", size="sm", radius="md",
                         disabled=bool(rv.must) or not bundle.assignments),
-        dbc.Button("CSVで保存", id="plan-export", color="secondary", outline=True, className="me-2",
-                   disabled=not bundle.assignments),
-    ]
-    if not locked:
-        buttons.append(upload_button("plan-upload", "過去の割り当てCSVを読み込む"))
+        button("CSVで保存", "plan-export", disabled=not bundle.assignments),
+        None if locked else upload_button("plan-upload", "過去の割り当てCSVを読み込む"),
+    ], gap="xs", mb="md")
 
     data = [
         {"assignment_id": a.assignment_id, "slot_id": a.slot_id, "course_id": a.course_id,
-         "teacher_id": a.teacher_id, "room_id": a.room_id, "reason": a.reason}
+         "teacher_id": a.teacher_id, "room_id": a.room_id, "reason": a.reason,
+         "event": c.event_name(c.slots[a.slot_id].day) if a.slot_id in c.slots else ""}
         for a in bundle.assignments
     ]
     table = dash_table.DataTable(
         id="plan-table", data=data, editable=not locked, row_deletable=not locked,
         columns=[
             {"name": "日付・時間帯", "id": "slot_id", "presentation": "dropdown"},
+            {"name": "イベント", "id": "event", "editable": False},
             {"name": "体験授業", "id": "course_id", "presentation": "dropdown"},
             {"name": "講師", "id": "teacher_id", "presentation": "dropdown"},
             {"name": "教室", "id": "room_id", "presentation": "dropdown"},
@@ -477,48 +524,49 @@ def plan_tab(bundle):
             "course_id": {"options": [{"label": x.name, "value": x.course_id}
                                       for x in sorted(c.courses.values(), key=lambda x: x.name)]},
             "teacher_id": {"options": [{"label": t.name, "value": t.teacher_id}
-                                       for t in sorted(c.teachers.values(), key=lambda t: t.name)]},
+                                       for t in sorted(c.teachers.values(), key=lambda t: t.name) if t.active]},
             "room_id": {"options": [{"label": n, "value": r} for r, n in sorted(c.rooms.items(), key=lambda x: x[1])]},
         },
         style_data_conditional=[
-            {"if": {"row_index": i}, "backgroundColor": "#fdecea"}
+            {"if": {"row_index": i}, "backgroundColor": "#fff4e6", "borderLeft": "3px solid #fd7e14"}
             for i, row in enumerate(data) if row["assignment_id"] in flagged
-        ] + [{"if": {"column_id": "reason"}, "color": "#374151"}],
+        ] + [{"if": {"column_id": ["reason", "event"]}, "color": MUTED}],
         style_cell_conditional=[
             {"if": {"column_id": "slot_id"}, "minWidth": "150px"},
+            {"if": {"column_id": "event"}, "minWidth": "130px"},
             {"if": {"column_id": "course_id"}, "minWidth": "250px"},
-            {"if": {"column_id": "teacher_id"}, "minWidth": "130px"},
-            {"if": {"column_id": "room_id"}, "minWidth": "100px"},
-            {"if": {"column_id": "reason"}, "minWidth": "360px"},
+            {"if": {"column_id": "teacher_id"}, "minWidth": "120px"},
+            {"if": {"column_id": "room_id"}, "minWidth": "90px"},
+            {"if": {"column_id": "reason"}, "minWidth": "340px"},
         ],
         **TABLE_STYLE,
     )
-    edit_row = None if locked else dbc.Row([
-        dbc.Col(dbc.Button("行を追加", id="plan-add", color="secondary", outline=True, size="sm"), width="auto"),
-        dbc.Col(dbc.Input(id="plan-change-reason", placeholder="直した理由(任意。次回以降のルール見直しに使います)",
-                          size="sm")),
-        dbc.Col(dbc.Button("修正を保存して再チェック", id="plan-save", color="primary", size="sm"), width="auto"),
-    ], className="mt-2 g-2", align="center")
+    edit_row = None if locked else dmc.Group([
+        button("行を追加", "plan-add"),
+        dmc.TextInput(id="plan-change-reason", placeholder="直した理由(任意。次回以降のルール見直しに使います)",
+                      size="sm", style={"flex": 1}),
+        button("修正を保存して再チェック", "plan-save", primary=True),
+    ], gap="xs", mt="sm")
 
     return html.Div([
-        html.Div(buttons, className="mb-3 d-flex flex-wrap align-items-center"),
-        dbc.Row([
-            stat("割り当て", len(bundle.assignments), "dark"),
-            stat("必ず守るルールの違反", len(rv.must), "danger"),
-            stat("なるべく守るルールの未充足", len(rv.should), "warning"),
-            stat("警告", len(rv.warnings), "warning"),
-            stat("先生の手修正(累計)", repo.count_changes(bundle.month), "dark"),
-        ], className="g-2 mb-3"),
+        buttons,
+        dmc.Group([
+            stat("割り当て", len(bundle.assignments)),
+            stat("必ず守るルールの違反", len(rv.must), warn=True),
+            stat("なるべく守るルールの未充足", len(rv.should), warn=True),
+            stat("確認してほしいこと", len(rv.warnings), warn=True),
+            stat("先生の手修正(累計)", repo.count_changes(bundle.month)),
+        ], gap="sm", mb="md"),
         alert("確定済みです。直す場合は「確定を解除」を押してください。", "success") if locked else None,
-        findings_block("必ず守るルール(Must)の違反 — 解消するまで確定できません", rv.must, "danger"),
-        findings_block("なるべく守るルール(Should)で満たせていないもの", rv.should, "warning"),
-        findings_block("確認してほしいこと", rv.warnings, "info"),
-        dbc.Alert([html.Strong("組めなかった理由(F5)"),
-                   html.Ul([html.Li(n) for n in rv.unplaced], className="mb-0 mt-1")],
-                  color="secondary", className="py-2") if rv.unplaced and bundle.assignments else None,
-        card("割り当て表", table, edit_row,
-             hint="セルを選ぶと直せます。赤い行は必ず守るルールに違反しています。") if bundle.assignments
-        else alert("まだ案がありません。「割り当て案を作る」を押してください。", "info"),
+        findings_block("必ず守るルール(Must)の違反 — 解消するまで確定できません", rv.must, "must"),
+        findings_block("なるべく守るルール(Should)で満たせていないもの", rv.should, "should"),
+        findings_block("確認してほしいこと", rv.warnings, "warning"),
+        dmc.Paper([dmc.Text("組めなかった理由", fw=600, size="sm", mb="xs"),
+                   dmc.List([dmc.ListItem(dmc.Text(n, size="sm")) for n in rv.unplaced], size="sm")],
+                  withBorder=True, radius="md", p="md", mb="sm") if rv.unplaced and bundle.assignments else None,
+        section("割り当て表", table, edit_row,
+                hint="セルを選ぶと直せます。左にオレンジの線がある行は、必ず守るルールに違反しています。")
+        if bundle.assignments else alert("まだ案がありません。「割り当て案を作る」を押してください。", "info"),
     ])
 
 
@@ -546,7 +594,7 @@ def add_plan_row(n, data):
     if not n:
         raise PreventUpdate
     return (data or []) + [{"assignment_id": "", "slot_id": None, "course_id": None, "teacher_id": None,
-                            "room_id": None, "reason": "(新しい行。保存すると理由が付きます)"}]
+                            "room_id": None, "event": "", "reason": "(新しい行。保存すると理由が付きます)"}]
 
 
 @app.callback(*NOTICE, Input("plan-save", "n_clicks"), State("plan-table", "data"),
@@ -600,14 +648,13 @@ def msg_tab(bundle):
     c = bundle.ctx
     if bundle.status not in ("confirmed", "contacted"):
         return alert("連絡文は、「② 割り当て案」で割り当てを確定してから作ります。", "info")
-    controls = dbc.Row([
-        dbc.Col(dbc.Input(id="msg-sender", placeholder="差出人の名前(例:鈴木)", size="sm"), width=3),
-        dbc.Col(dbc.Checkbox(id="msg-ai", label="あいさつ文をAIで整える", value=False,
-                             disabled=not llm_client.available), width="auto"),
-        dbc.Col(dbc.Button("連絡文の下書きを作る", id="msg-create", color="primary", size="sm"), width="auto"),
-        dbc.Col(dbc.Button("送信が済んだら「連絡済」にする", id="msg-sent", color="success", outline=True, size="sm",
-                           disabled=not bundle.messages or bundle.status == "contacted"), width="auto"),
-    ], className="g-2 mb-3", align="center")
+    controls = dmc.Group([
+        dmc.TextInput(id="msg-sender", placeholder="差出人の名前(例:鈴木)", size="sm", w=220),
+        dmc.Checkbox(id="msg-ai", label="あいさつ文をAIで整える", checked=False, disabled=not llm_client.available),
+        button("連絡文の下書きを作る", "msg-create", primary=True),
+        button("送信が済んだら「連絡済」にする", "msg-sent",
+               disabled=not bundle.messages or bundle.status == "contacted"),
+    ], gap="sm", mb="md")
     if not bundle.messages:
         return html.Div([controls, alert("まだ下書きがありません。", "info")])
 
@@ -618,26 +665,32 @@ def msg_tab(bundle):
     items = []
     for i, m in enumerate(sorted(bundle.messages, key=lambda m: (order[m.kind], c.teacher_name(m.teacher_id or "")))):
         to = "HP業者" if m.kind == "hp" else c.teacher_name(m.teacher_id)
-        items.append(dbc.AccordionItem([
-            html.Div([html.Span("件名:", className="text-muted"), html.Span(m.subject, id=f"msg-subject-{i}"),
-                      dcc.Clipboard(target_id=f"msg-subject-{i}", title="件名をコピー",
-                                    className="d-inline-block ms-2 text-primary")], className="mb-2"),
-            html.Div([
-                dcc.Clipboard(target_id=f"msg-body-{i}", title="本文をコピー",
-                              className="float-end text-primary fs-5"),
-                html.Pre(m.body, id=f"msg-body-{i}", className="mb-0",
-                         style={"whiteSpace": "pre-wrap", "fontFamily": "inherit", "fontSize": "14px"}),
-            ], className="border rounded p-3 bg-light"),
-        ], title=f"{to} 宛て — {messages.KIND_LABEL[m.kind]}"))
+        items.append(dmc.AccordionItem([
+            dmc.AccordionControl(dmc.Group([
+                dmc.Text(f"{to} 宛て", fw=500, size="sm"),
+                dmc.Badge(messages.KIND_LABEL[m.kind], variant="light", color="gray", radius="sm"),
+            ], gap="sm")),
+            dmc.AccordionPanel([
+                dmc.Group([dmc.Text("件名", size="xs", c="dimmed"), dmc.Text(m.subject, id=f"msg-subject-{i}", size="sm"),
+                           dcc.Clipboard(target_id=f"msg-subject-{i}", title="件名をコピー",
+                                         style={"color": ACCENT, "cursor": "pointer"})], gap="xs", mb="xs"),
+                dmc.Paper([
+                    dcc.Clipboard(target_id=f"msg-body-{i}", title="本文をコピー",
+                                  style={"float": "right", "color": ACCENT, "fontSize": 18, "cursor": "pointer"}),
+                    html.Pre(m.body, id=f"msg-body-{i}",
+                             style={"whiteSpace": "pre-wrap", "fontFamily": "inherit", "fontSize": 14, "margin": 0}),
+                ], withBorder=True, radius="md", p="md", bg="#fafafa"),
+            ]),
+        ], value=str(i)))
     return html.Div([
         controls, check,
-        html.Div("右上のアイコンで本文をコピーし、ふだんのメールに貼り付けて送ってください。送信は先生が行います。",
-                 className="text-muted small mb-2"),
-        dbc.Accordion(items, start_collapsed=True, always_open=True),
+        dmc.Text("右上のアイコンで本文をコピーし、ふだんのメールに貼り付けて送ってください。送信は先生が行います。",
+                 size="sm", c="dimmed", mb="xs"),
+        dmc.Accordion(items, multiple=True, variant="separated", radius="md"),
     ])
 
 
-@app.callback(*NOTICE, Input("msg-create", "n_clicks"), State("msg-sender", "value"), State("msg-ai", "value"),
+@app.callback(*NOTICE, Input("msg-create", "n_clicks"), State("msg-sender", "value"), State("msg-ai", "checked"),
               *MONTH_STATE, prevent_initial_call=True)
 @action
 def create_messages(_, sender, use_ai, year, month):
@@ -655,77 +708,107 @@ def mark_sent(_, year, month):
     return done("この月を「連絡済」にしました。")
 
 
-# ================================================================ マスター登録
+# ================================================================ マスター
 
-# (テーブル, タブ名, 説明, [(列, 見出し, 種類)])  種類: text / bool / date / ref:参照先テーブル
+# マスターの多くは調整共有シートから取り込みます(先生はスプレッドシートを直す)。
+# シートに列がない「系統」「代わりの系統」「代わりの教室(R11)」と、体験授業の系統だけをこの画面で直します。
+# (テーブル, タブ名, 説明, [(列, 見出し, 種類, この画面で直せるか)])  種類: text / bool / date / int / ref:参照先 / priority
 MASTERS = [
-    ("teacher", "講師", "体験授業を担当する講師。", [("name", "名前", "text"), ("active", "在籍中", "bool")]),
-    ("teacher_course", "講師×授業", "どの講師がどの体験授業を担当できるか。",
-     [("teacher_id", "講師", "ref:teacher"), ("course_id", "体験授業", "ref:course")]),
-    ("course", "体験授業", "体験授業と、その系統。", [("name", "体験授業名", "text"), ("genre_id", "系統", "ref:genre")]),
-    ("course_software", "授業×ソフト", "体験授業で使うソフト。ここにあるソフトが入った教室にだけ割り当てます(R2)。",
-     [("course_id", "体験授業", "ref:course"), ("software_id", "ソフト", "ref:software")]),
+    ("course", "体験授業", "体験授業一覧から取り込んだ授業。系統だけここで選びます(R5 の判定に使います)。",
+     [("name", "体験授業名", "text", False), ("genre_id", "系統", "ref:genre", True),
+      ("capacity", "定員目安", "int", False), ("note", "備考・準備事項", "text", False)]),
     ("genre", "系統", "「2週続けて空けない」(R5)の対象にする系統は「はい」にします。",
-     [("name", "系統名", "text"), ("r5_target", "R5の対象", "bool")]),
+     [("name", "系統名", "text", True), ("r5_target", "R5の対象", "bool", True)]),
     ("genre_substitute", "代わりの系統", "左の系統を入れられない週に、代わりにできる近い系統(例:CG → VFX)。",
-     [("genre_id", "系統", "ref:genre"), ("substitute_genre_id", "代わりにできる系統", "ref:genre")]),
-    ("room", "教室", "体験授業で使う教室。", [("name", "教室名", "text")]),
-    ("room_software", "教室×ソフト", "教室に入っているソフト。春や長期休みの入れ替え時に、機材担当に確認して更新します。"
-     "日付は 2026-04-01 の形で入れます。確認日が古いと警告が出ます(R10)。",
-     [("room_id", "教室", "ref:room"), ("software_id", "ソフト", "ref:software"),
-      ("valid_from", "導入日", "date"), ("valid_to", "外した日", "date"), ("confirmed_on", "確認日", "date")]),
-    ("software", "ソフト", "体験授業で使うソフト。", [("name", "ソフト名", "text")]),
+     [("genre_id", "系統", "ref:genre", True), ("substitute_genre_id", "代わりにできる系統", "ref:genre", True)]),
+    ("room_alternative", "代わりの教室", "工事中などに、元の教室の授業を入れてよい教室と期限(R11。ルール一覧 No.4)。"
+     "日付は 2027-02-28 の形で入れます。",
+     [("room_id", "元の教室", "ref:room", True), ("alt_room_id", "代わりの教室", "ref:room", True),
+      ("valid_until", "期限", "date", True), ("note", "メモ", "text", True)]),
+    ("teacher", "講師", "体験授業一覧の講師名から取り込みます。メールアドレスはフォーム回答の照合で覚えます。",
+     [("name", "名前", "text", False), ("active", "在籍中", "bool", False), ("email", "メールアドレス", "text", False)]),
+    ("teacher_course", "講師×授業", "どの講師がどの体験授業を担当できるか(1つの授業を複数の講師が担当します)。",
+     [("teacher_id", "講師", "ref:teacher", False), ("course_id", "体験授業", "ref:course", False)]),
+    ("course_room", "授業×教室", "体験授業一覧の「優先して入れる教室」「予備教室」。優先→予備の順に使います。",
+     [("course_id", "体験授業", "ref:course", False), ("room_id", "教室", "ref:room", False),
+      ("priority", "区分", "priority", False)]),
+    ("course_software", "授業×ソフト", "授業に必要なソフト。ここにあるソフトが入った教室にだけ割り当てます(R2)。",
+     [("course_id", "体験授業", "ref:course", False), ("software_id", "ソフト", "ref:software", False)]),
+    ("room", "教室", "教室シートから取り込みます。「使用しない」の教室は割り当てに使いません。",
+     [("name", "教室名", "text", False), ("usable", "使う", "bool", False)]),
+    ("room_software", "教室×ソフト", "教室シートの「必要な教室環境/ソフト」。確認日が古いと警告が出ます(R10)。",
+     [("room_id", "教室", "ref:room", False), ("software_id", "ソフト", "ref:software", False),
+      ("confirmed_on", "確認日", "date", False)]),
+    ("software", "ソフト", "教室シートに出てくるソフト。", [("name", "ソフト名", "text", False)]),
 ]
 MASTER_SPEC = {name: cols for name, _, _, cols in MASTERS}
 ID_COLUMN = {"teacher": "teacher_id", "course": "course_id", "genre": "genre_id",
              "room": "room_id", "software": "software_id"}
+YES_NO = [{"label": "はい", "value": "はい"}, {"label": "いいえ", "value": "いいえ"}]
 
 
 def master_tab(bundle):
     names = {t: {r[ID_COLUMN[t]]: r["name"] for r in repo.read(t)} for t in ID_COLUMN}
-    tabs = []
+    tabs, panels = [], []
     for table, label, hint, cols in MASTERS:
         rows = repo.read(table)
+        editable = any(e for *_, e in cols)
         data, columns, dropdown = [], [], {}
-        for field, title, kind in cols:
-            col = {"name": title, "id": field}
-            if kind == "bool":
+        for field, title, kind, can_edit in cols:
+            col = {"name": title, "id": field, "editable": can_edit}
+            if kind == "bool" and can_edit:
                 col["presentation"] = "dropdown"
                 dropdown[field] = {"options": YES_NO}
-            elif kind.startswith("ref:"):
+            elif kind.startswith("ref:") and can_edit:
                 col["presentation"] = "dropdown"
                 dropdown[field] = {"options": [{"label": n, "value": i} for i, n in
                                                sorted(names[kind[4:]].items(), key=lambda x: x[1])]}
             columns.append(col)
         for r in rows:
             row = dict(r)
-            for field, _, kind in cols:
+            for field, _, kind, can_edit in cols:
+                value = r.get(field)
                 if kind == "bool":
-                    row[field] = "いいえ" if r[field] is False else "はい"
+                    row[field] = "いいえ" if value is False else "はい"
                 elif kind == "date":
-                    row[field] = r[field].isoformat() if r[field] else ""
+                    row[field] = value.isoformat() if value else ""
+                elif kind == "priority":
+                    row[field] = PRIORITY_LABEL.get(value, value)
+                elif kind.startswith("ref:") and not can_edit:
+                    row[field] = names[kind[4:]].get(value, value)
             data.append(row)
-        sort_key = cols[0][0]
-        data.sort(key=lambda r: str(names.get(MASTER_SPEC[table][0][2][4:], {}).get(r[sort_key], r[sort_key])))
-        tabs.append(dbc.Tab(label=f"{label}({len(data)})", tab_id=table, children=html.Div([
-            html.Div(hint, className="text-muted small my-2"),
+        first_field, _, first_kind, _ = cols[0]
+        data.sort(key=lambda r: str(names.get(first_kind[4:], {}).get(r[first_field], r[first_field]) or ""))
+        tabs.append(dmc.TabsTab(f"{label}({len(data)})", value=table,
+                                rightSection=None if not editable else dmc.Badge("編集", size="xs", variant="light")))
+        panels.append(dmc.TabsPanel(html.Div([
+            dmc.Text(hint, size="sm", c="dimmed", my="sm"),
             dash_table.DataTable(id={"type": "master", "name": table}, data=data, columns=columns,
-                                 dropdown=dropdown, editable=True, row_deletable=True, **TABLE_STYLE),
-            html.Div([
-                dbc.Button("行を追加", id={"type": "master-add", "name": table}, color="secondary", outline=True,
-                           size="sm", className="me-2"),
-                dbc.Button(f"「{label}」を保存", id={"type": "master-save", "name": table}, color="primary",
-                           size="sm"),
-            ], className="mt-2"),
-        ])))
+                                 dropdown=dropdown, editable=editable,
+                                 row_deletable=editable and table != "course",
+                                 page_size=50, **TABLE_STYLE),
+            dmc.Group([
+                None if table == "course" else button("行を追加", {"type": "master-add", "name": table}),
+                button(f"「{label}」を保存", {"type": "master-save", "name": table}, primary=True),
+            ], gap="xs", mt="sm") if editable else None,
+        ]), value=table))
     demo = dcc.ConfirmDialogProvider(
-        dbc.Button("デモデータを入れる", color="secondary", outline=True, size="sm"), id="demo-seed",
+        dmc.Button("デモデータを入れる", variant="subtle", color="gray", size="sm"), id="demo-seed",
         message="マスターをすべて架空のデモデータに置き換え、表示中の月に開催枠と対応可能日を入れます。よろしいですか?")
     return html.Div([
-        html.Div([html.Span("講師・授業・教室・ソフトの登録(F2)。", className="me-3"), demo],
-                 className="mb-2 d-flex align-items-center"),
+        section(
+            "調整共有シートから取り込む",
+            dmc.Group([
+                button("シートの内容を取り込む", "master-sheet", primary=True),
+                upload_button("master-upload", "調整共有シートの Excel を選ぶ", accept=".xlsx"),
+                demo,
+            ], gap="xs"),
+            hint="「体験授業一覧」(授業・講師・必要なソフト・優先教室・予備教室・定員)と「教室」(教室ごとのソフト)を読み込みます。"
+                 "講師・授業・教室を直すときは、スプレッドシートを直してから取り込み直してください。系統の設定は残ります。",
+        ),
         # 保存して画面を読み直しても、開いていたタブに戻る
-        dbc.Tabs(tabs, id="master-tabs", active_tab="teacher", persistence=True, persistence_type="session"),
+        dmc.Tabs([dmc.TabsList(tabs)] + panels, id="master-tabs", value="course", persistence=True,
+                 persistence_type="session"),
     ])
 
 
@@ -737,17 +820,21 @@ def add_master_row(n, data, table_id):
     if not n:
         raise PreventUpdate
     blank = {field: ("はい" if kind == "bool" else None if kind.startswith("ref:") else "")
-             for field, _, kind in MASTER_SPEC[table_id["name"]]}
+             for field, _, kind, _ in MASTER_SPEC[table_id["name"]]}
     return (data or []) + [blank]
 
 
 def parse_master_rows(table: str, data: list[dict]) -> list[dict]:
+    """画面で直せる表(系統・代わりの系統・代わりの教室・体験授業の系統)を、テーブルの行に戻す。"""
     spec = MASTER_SPEC[table]
     id_col = ID_COLUMN.get(table)
+    if table == "course":  # 系統だけを差し替える。ほかの列は取り込んだ値のまま
+        genre = {r["course_id"]: r.get("genre_id") or None for r in data or []}
+        return [{**r, "genre_id": genre.get(r["course_id"], r["genre_id"])} for r in repo.read("course")]
     rows, seen = [], set()
     for n, raw in enumerate(data or [], start=1):
         row = {}
-        for field, title, kind in spec:
+        for field, title, kind, _ in spec:
             value = raw.get(field)
             if kind == "bool":
                 row[field] = value != "いいえ"
@@ -756,10 +843,10 @@ def parse_master_rows(table: str, data: list[dict]) -> list[dict]:
                 try:
                     row[field] = date.fromisoformat(text) if text else None
                 except ValueError:
-                    raise ValueError(f"{n}行目の「{title}」は 2026-04-01 の形で入れてください(入力:{value})")
+                    raise ValueError(f"{n}行目の「{title}」は 2027-02-28 の形で入れてください(入力:{value})")
             else:
                 row[field] = str(value).strip() if value not in (None, "") else None
-        required = [f for f, _, k in spec if k == "text" or k.startswith("ref:")]
+        required = [f for f, _, k, _ in spec if k.startswith("ref:") or (k == "text" and f == "name")]
         if any(row[f] is None for f in required):
             if all(row[f] is None for f in required):
                 continue  # 空行は捨てる
@@ -785,6 +872,25 @@ def save_master(_, all_data, ids):
     repo.replace(table, rows)
     label = next(lbl for name, lbl, _, _ in MASTERS if name == table)
     return done(f"「{label}」を{len(rows)}件保存しました。")
+
+
+def imported(counts, notes):
+    text = "取り込みました:" + "、".join(
+        f"{lbl}{counts[t]}件" for t, lbl in (("course", "体験授業"), ("teacher", "講師"), ("room", "教室"),
+                                            ("course_room", "授業×教室")) if t in counts)
+    return done(text, "warning" if notes else "success", notes)
+
+
+@app.callback(*NOTICE, Input("master-sheet", "n_clicks"), prevent_initial_call=True)
+@action
+def import_sheet(_):
+    return imported(*manager.import_masters_from_sheet_raw(repo))
+
+
+@app.callback(*NOTICE, Input("master-upload", "contents"), prevent_initial_call=True)
+@action
+def import_sheet_upload(contents):
+    return imported(*manager.import_masters_from_book(repo, sheet_import.read_workbook(upload_bytes(contents))))
 
 
 @app.callback(*NOTICE, Input("demo-seed", "submit_n_clicks"), *MONTH_STATE, prevent_initial_call=True)
@@ -818,17 +924,18 @@ SETTING_LABELS = [
 def settings_tab(bundle):
     s = bundle.ctx.settings
     rows = [
-        dbc.Row([
-            dbc.Col(html.Div([html.Div(label), html.Div(hint, className="text-muted small")]), width=5),
-            dbc.Col(dbc.Input(id={"type": "setting", "key": key}, type="number", min=0, step=1,
-                              value=getattr(s, key), size="sm"), width=2),
-        ], className="mb-2", align="center")
+        dmc.Group([
+            dmc.Stack([dmc.Text(label, size="sm"), dmc.Text(hint, size="xs", c="dimmed")] if hint
+                      else [dmc.Text(label, size="sm")], gap=0, style={"flex": 1}),
+            dmc.NumberInput(id={"type": "setting", "key": key}, min=0, step=1, value=getattr(s, key),
+                            size="sm", w=120, allowDecimal=False),
+        ], justify="space-between", py=6, style={"borderBottom": f"1px solid {BORDER}"})
         for key, label, hint in SETTING_LABELS
     ]
-    return card(
+    return section(
         "割り当ての作り方の設定",
-        *rows,
-        dbc.Button("設定を保存", id="settings-save", color="primary", size="sm", className="mt-2"),
+        dmc.Stack(rows, gap=0, maw=640),
+        button("設定を保存", "settings-save", primary=True, mt="md"),
         hint="なるべく守るルール(Should)どうしがぶつかったときは、重みが大きいほうを優先します。"
              "初期値は仮のものです。先生と相談して決めた値に直してください。",
     )
@@ -841,7 +948,7 @@ def settings_tab(bundle):
 def save_settings(_, values, ids):
     s = Settings()
     for value, i in zip(values, ids):
-        if value is None or int(value) < 0:
+        if value in (None, "") or int(value) < 0:
             return alert("空欄または負の値があります。0以上の整数を入れてください。", "danger"), dash.no_update
         setattr(s, i["key"], int(value))
     if s.per_slot_max < max(1, s.per_slot_target):
