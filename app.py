@@ -186,8 +186,18 @@ def layout():
             alert(f"テーブルの準備に失敗しました:{STARTUP_ERROR}", "danger") if STARTUP_ERROR else None,
             dmc.Tabs(dmc.TabsList([dmc.TabsTab(label, value=key) for key, label in STEPS]),
                      id="tabs", value="prep", variant="default", mb="lg"),
-            html.Div(id="notice"),
-            dcc.Loading(html.Div(id="content"), type="dot", delay_show=400, color=ACCENT),
+            # 操作の処理中・画面の読み込み中は、画面を薄くして「処理中です」を出す(二度押しも防ぐ)
+            dcc.Loading(
+                html.Div([html.Div(id="notice"), html.Div(id="content")]),
+                target_components={"notice": "children", "content": "children"},
+                delay_show=300,
+                overlay_style={"visibility": "visible", "opacity": 0.45, "filter": "blur(1px)",
+                               "pointerEvents": "none"},
+                custom_spinner=dmc.Paper(dmc.Group([dmc.Loader(size="sm", color="accent"),
+                                                    dmc.Text("処理中です…", size="sm", fw=500)], gap="sm"),
+                                         withBorder=True, radius="md", px="lg", py="sm", shadow="sm"),
+                parent_style={"minHeight": 200},
+            ),
         ], size="xl", py="lg")),
     ], header={"height": 60}, padding=0))
 
@@ -242,7 +252,7 @@ def slot_card(bundle):
                 continue
             weekend = d.weekday() >= 5
             cells.append(dmc.TableTd(dmc.Stack([
-                dmc.Text(str(d.day), fw=600, size="sm", c=ACCENT if weekend else None),
+                dmc.Text(str(d.day), fw=600, size="sm", c=ACCENT if weekend else "dark"),
                 dmc.Checkbox(id={"type": "slot", "key": slot_id_of(d, "AM")}, label="午前", size="xs",
                              checked=slot_id_of(d, "AM") in picked),
                 dmc.Checkbox(id={"type": "slot", "key": slot_id_of(d, "PM")}, label="午後", size="xs",
