@@ -60,8 +60,10 @@ class _State:
             return None
         # ルール一覧 No.1: 体験授業一覧の「優先して入れる教室」→「予備教室」→ その他の順に使う
         rank = {MAIN: 0, BACKUP: 1}
+        # 同じ順位の教室が複数あれば、体験授業一覧に先に書かれた教室から
         return min(options, key=lambda r: (
-            rank.get(self.ctx.room_priority(course_id, r, slot.day), 2), self.versatility[r], self.ctx.room_name(r)))
+            rank.get(self.ctx.room_priority(course_id, r, slot.day), 2),
+            self.ctx.course_room_order.get((course_id, r), 99), self.versatility[r], self.ctx.room_name(r)))
 
     def add(self, slot_id: str, teacher_id: str, course_id: str, room_id: str) -> None:
         self.assignments.append(Assignment(new_id(), slot_id, course_id, teacher_id, room_id))
@@ -168,7 +170,73 @@ def generate(ctx: Context) -> list[Assignment]:
         _add_other_period(st, *best)
 
     result = _swap_in_unassigned(st.assignments, ctx, cands)
+    result = _improve_rooms(result, ctx)
     return sorted(result, key=lambda a: (ctx.slots[a.slot_id].day, a.slot_id, ctx.room_name(a.room_id)))
+
+
+def _improve_rooms(assignments: list[Assignment], ctx: Context) -> list[Assignment]:
+    """先に入れた授業が後の授業の「優先教室」をふさいでいることがあるので、教室を入れ替えて直す。
+
+    1日の同じ講師・同じ授業(午前と午後)は、同じ教室のまま動かす。
+    教室の順位(優先 → 予備 → その他)の合計が下がるときだけ、移すか2つの授業で教室を交換する。
+    """
+    rank = {MAIN: 0, BACKUP: 1}
+    units: dict[tuple, list[Assignment]] = defaultdict(list)
+    for a in assignments:
+        units[(ctx.slots[a.slot_id].day, a.teacher_id, a.course_id)].append(a)
+    used: dict[tuple[str, str], tuple] = {}  # (枠, 教室) -> 授業のまとまり
+    for key, items in units.items():
+        for a in items:
+            used[(a.slot_id, a.room_id)] = key
+
+    def cost(key, room):
+        return rank.get(ctx.room_priority(key[2], room, key[0]), 2)
+
+    def fits(key, room, ignore=()):
+        """その教室が、まとまりのすべての枠で使えるか(ignore のまとまりが使っている分は空いているとみなす)。"""
+        for a in units[key]:
+            if (room, a.slot_id) in ctx.room_blocks or rules.missing_software(ctx, room, key[2], key[0]):
+                return False
+            other = used.get((a.slot_id, room))
+            if other is not None and other != key and other not in ignore:
+                return False
+        return True
+
+    def move(key, room):
+        for a in units[key]:
+            if used.get((a.slot_id, a.room_id)) == key:
+                del used[(a.slot_id, a.room_id)]
+        for a in units[key]:
+            a.room_id = room
+            used[(a.slot_id, room)] = key
+
+    for _ in range(3):
+        changed = False
+        for key in sorted(units, key=lambda k: (k[0], ctx.teacher_name(k[1]), ctx.course_name(k[2]))):
+            here = units[key][0].room_id
+            if len({a.room_id for a in units[key]}) != 1 or cost(key, here) == 0:
+                continue
+            for room in sorted(ctx.rooms, key=lambda r: (cost(key, r), ctx.room_name(r))):
+                if cost(key, room) >= cost(key, here):
+                    break
+                holders = {used[(a.slot_id, room)] for a in units[key] if (a.slot_id, room) in used} - {key}
+                if not holders and fits(key, room):
+                    move(key, room)
+                    changed = True
+                    break
+                if len(holders) == 1:
+                    other = holders.pop()
+                    if len({a.room_id for a in units[other]}) != 1:
+                        continue
+                    if fits(key, room, ignore=(other,)) and fits(other, here, ignore=(key,)) \
+                            and cost(key, room) + cost(other, here) < cost(key, here) + cost(other, room):
+                        move(other, here)
+                        move(key, room)
+                        changed = True
+                        break
+        if not changed:
+            break
+    return assignments
 
 
 def _add_other_period(st: _State, slot_id: str, teacher_id: str, course_id: str, room_id: str) -> None:

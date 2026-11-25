@@ -162,7 +162,7 @@ def parse_shared_sheet(course_rows: list[list], room_rows: list[list],
                 if rid is None:
                     unknown_rooms.add(room)
                 elif (cid, rid) not in course_room:
-                    course_room[(cid, rid)] = priority
+                    course_room[(cid, rid)] = (priority, len([k for k in course_room if k[0] == cid]))
 
     # 前は登録されていて、今回の一覧にない講師は、消さずに「在籍していない」扱いにする
     for t in existing.get("teacher", []):
@@ -177,7 +177,8 @@ def parse_shared_sheet(course_rows: list[list], room_rows: list[list],
         "teacher": list(teachers.values()),
         "teacher_course": [{"teacher_id": t, "course_id": c} for t, c in sorted(teacher_course)],
         "course_software": [{"course_id": c, "software_id": s} for c, s in sorted(course_software)],
-        "course_room": [{"course_id": c, "room_id": r, "priority": p} for (c, r), p in sorted(course_room.items())],
+        "course_room": [{"course_id": c, "room_id": r, "priority": p, "sort_order": i}
+                        for (c, r), (p, i) in sorted(course_room.items())],
     }
     if unchecked:
         notes.append("教室シートに載っていないため、教室の判定(R2)に使えないソフト・機材:"

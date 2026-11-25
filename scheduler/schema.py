@@ -33,7 +33,8 @@ TABLES: dict[str, list[tuple[str, str]]] = {
     "software": [("software_id", "STRING"), ("name", "STRING")],
     "course_software": [("course_id", "STRING"), ("software_id", "STRING")],
     "room": [("room_id", "STRING"), ("name", "STRING"), ("usable", "BOOLEAN")],
-    "course_room": [("course_id", "STRING"), ("room_id", "STRING"), ("priority", "STRING")],  # main / backup
+    # priority: main / backup。sort_order: 体験授業一覧に書かれた順(優先教室が複数あるとき、先に書かれた教室から使う)
+    "course_room": [("course_id", "STRING"), ("room_id", "STRING"), ("priority", "STRING"), ("sort_order", "INT")],
     "room_alternative": [
         ("room_id", "STRING"), ("alt_room_id", "STRING"), ("valid_until", "DATE"), ("note", "STRING"),
     ],

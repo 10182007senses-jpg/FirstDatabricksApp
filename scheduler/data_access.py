@@ -271,6 +271,8 @@ class Repo:
                 ctx.rooms[r["room_id"]] = r["name"]
         for r in self.read("course_room"):
             ctx.course_rooms.setdefault(r["course_id"], {})[r["room_id"]] = r["priority"] or "main"
+            if r.get("sort_order") is not None:
+                ctx.course_room_order[(r["course_id"], r["room_id"])] = int(r["sort_order"])
         ctx.room_alternatives = [
             RoomAlternative(r["room_id"], r["alt_room_id"], r["valid_until"], r["note"] or "")
             for r in self.read("room_alternative")

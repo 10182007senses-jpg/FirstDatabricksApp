@@ -146,6 +146,7 @@ class Context:
     course_software: dict[str, set[str]] = field(default_factory=dict)
     rooms: dict[str, str] = field(default_factory=dict)  # id -> 名前(使える教室だけ)
     course_rooms: dict[str, dict[str, str]] = field(default_factory=dict)  # 授業 -> {教室: main/backup}
+    course_room_order: dict[tuple[str, str], int] = field(default_factory=dict)  # (授業, 教室) -> 書かれた順
     room_alternatives: list[RoomAlternative] = field(default_factory=list)
     events: dict[date, str] = field(default_factory=dict)  # 開催日 -> イベント名
     room_software: list[RoomSoftware] = field(default_factory=list)

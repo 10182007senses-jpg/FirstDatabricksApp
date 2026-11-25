@@ -59,6 +59,8 @@ def test_parse_shared_sheet_builds_masters():
     r101 = sheet_import.stable_id("r", "101")
     r102 = sheet_import.stable_id("r", "102")
     assert (r101, MAIN) in pri and (r102, MAIN) in pri  # 先に書かれた「優先」が残る
+    order = {r["room_id"]: r["sort_order"] for r in t["course_room"] if r["course_id"] == game}
+    assert order[r101] < order[r102]  # 書かれた順も残す
     rooms = {r["name"]: r["usable"] for r in t["room"]}
     assert rooms["202"] is False and rooms["lab1"] is True
     assert next(c for c in t["course"] if c["name"] == "手描きイラスト体験")["capacity"] == 8
