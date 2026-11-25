@@ -100,7 +100,8 @@ teacher.aliases / course.aliases 列。会社名・旧授業名で照合可能�
 
 ### T11 アクセシビリティ・見やすさ点検 [S]
 accessibility-engineering スキルで WCAG 2.2 AA 点検。コントラスト・ラベル・キーボード操作。
-- [ ] 指摘の重大項目 0
+- [x] 指摘の重大項目 0(アプリ側。axe 20件→9件、残りは Dash 標準部品の内部: DataTable のプルダウン・空の見出しセル・スクロール領域、dcc.Upload の input)
+- メモ: pa11y は起動失敗で未実施。キーボード移動・200%相当(幅640px)は確認。読み上げソフト(VoiceOver)は未確認
 - 確認: ローカル画面 + axe 相当チェック
 - ファイル: assets/style.css, theme.py, app.py
 

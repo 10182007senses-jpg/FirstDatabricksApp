@@ -9,3 +9,7 @@ body { background: #fafafa; }
 .dash-table-container .Select-control { border: none; background: transparent; }
 .dash-table-container .dash-spreadsheet-inner td.focused { background: #eef3fc !important; }
 .dash-table-container .dash-delete-cell { color: #a1a1aa; border-bottom: 1px solid #e4e4e7 !important; }
+/* アクセシビリティ: 薄い文字(dimmed)を白地で 4.5:1 以上にする(Mantine の初期値は約3.3:1) */
+:root, :root[data-mantine-color-scheme="light"] { --mantine-color-dimmed: #5c5f66 !important; }
+/* キーボードで操作しているときは、どこにいるかが必ず見えるようにする */
+:focus-visible { outline: 2px solid #2f5fd0; outline-offset: 2px; }

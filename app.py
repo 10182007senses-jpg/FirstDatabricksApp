@@ -55,6 +55,8 @@ ensure_schema()
 llm_client = llm.LLMClient()
 
 app = dash.Dash(__name__, suppress_callback_exceptions=True, title="体験授業調整AI", update_title=None)
+# 読み上げソフトが日本語として読むように、ページの言語を指定する
+app.index_string = app.index_string.replace("<html>", '<html lang="ja">')
 server = app.server
 
 
@@ -120,7 +122,7 @@ def section(title, *children, hint=None, step=None, right=None):
     """白いカード1枚=作業のひとまとまり。見出し・説明・中身の順に並べる。"""
     head = [dmc.Group([
         dmc.Group([dmc.Badge(step, variant="outline", color="gray", radius="sm") if step else None,
-                   dmc.Title(title, order=4, fw=600)], gap="xs"),
+                   dmc.Title(title, order=2, size="h4", fw=600)], gap="xs"),
         right,
     ], justify="space-between", align="center")]
     if hint:
@@ -173,11 +175,13 @@ def layout():
     months = [{"label": f"{v}月", "value": str(v)} for v in range(1, 13)]
     header = dmc.Group([
         dmc.Group([
-            dmc.Title("体験授業調整AI", order=3, fw=700),
+            dmc.Title("体験授業調整AI", order=1, size="h3", fw=700, style={"whiteSpace": "nowrap"}),
             dmc.Divider(orientation="vertical"),
-            dmc.Text("対象月", size="sm", c="dimmed"),
-            dmc.Select(id="year", data=years, value=str(y), w=100, size="sm", allowDeselect=False),
-            dmc.Select(id="month", data=months, value=str(m), w=80, size="sm", allowDeselect=False),
+            dmc.Text("対象月", size="sm", c="dimmed", style={"whiteSpace": "nowrap"}),
+            dmc.Select(id="year", data=years, value=str(y), w=100, size="sm", allowDeselect=False,
+                       **{"aria-label": "対象の年"}),
+            dmc.Select(id="month", data=months, value=str(m), w=80, size="sm", allowDeselect=False,
+                       **{"aria-label": "対象の月"}),
             html.Div(id="status"),
             html.Div(id="dirty-badge"),
         ], gap="sm", wrap="nowrap"),
@@ -202,7 +206,9 @@ def layout():
             ]),
             html.Div(id="progress"),
             alert(f"テーブルの準備に失敗しました:{STARTUP_ERROR}", "danger") if STARTUP_ERROR else None,
-            dmc.Tabs(dmc.TabsList([dmc.TabsTab(label, value=key) for key, label in STEPS]),
+            # 中身は下の content に出す。空のパネルは、タブの aria-controls が指す先を用意するためのもの
+            dmc.Tabs([dmc.TabsList([dmc.TabsTab(label, value=key) for key, label in STEPS])]
+                     + [dmc.TabsPanel(None, value=key) for key, _ in STEPS],
                      id="tabs", value="prep", variant="default", mb="lg"),
             # 操作の処理中・画面の読み込み中は、画面を薄くして「処理中です」を出す(二度押しも防ぐ)
             dcc.Loading(
@@ -416,7 +422,7 @@ def slot_card(bundle):
                 dmc.Checkbox(id={"type": "slot", "key": slot_id_of(d, "PM")}, label="午後", size="xs",
                              checked=slot_id_of(d, "PM") in picked),
                 dmc.TextInput(id={"type": "event", "day": d.isoformat()}, value=c.event_name(d),
-                              placeholder="イベント名", size="xs"),
+                              placeholder="イベント名", size="xs", **{"aria-label": f"{d.month}/{d.day}のイベント名"}),
             ], gap=4), style={"verticalAlign": "top"}))
         rows.append(dmc.TableTr(cells))
     table = dmc.Table([head, dmc.TableTbody(rows)], withTableBorder=True, withColumnBorders=True,
@@ -485,11 +491,14 @@ def availability_card(bundle):
             rows.append(dmc.TableTr([dmc.TableTd(t.name, style={"whiteSpace": "nowrap"})] + [
                 dmc.TableTd(dmc.Center(dmc.Checkbox(id={"type": "av", "t": t.teacher_id, "s": s.slot_id},
                                                     checked=(t.teacher_id, s.slot_id) in c.availability,
-                                                    size="xs")))
+                                                    size="xs", **{"aria-label": f"{t.name} {short_slot(s)}"})))
                 for s in slots
             ]))
-        body = [dmc.ScrollArea(dmc.Table([head, dmc.TableTbody(rows)], withTableBorder=True,
-                                         highlightOnHover=True, striped=False), type="auto", mb="sm")]
+        # 横に送れる表は、キーボードでも送れるようにフォーカスできる領域にする
+        body = [html.Div(dmc.Table([head, dmc.TableTbody(rows)], withTableBorder=True,
+                                   highlightOnHover=True, striped=False),
+                         tabIndex=0, role="region", **{"aria-label": "講師の対応可能日の表"},
+                         style={"overflowX": "auto", "marginBottom": "12px"})]
     return section(
         "講師の対応可能日",
         dmc.Group([
