@@ -37,7 +37,8 @@ class _State:
         self.rooms: dict[str, set[str]] = defaultdict(set)
         self.teachers: dict[str, set[str]] = defaultdict(set)
         self.courses: dict[str, list[str]] = defaultdict(list)
-        self.teacher_count: Counter = Counter()
+        self.teacher_count: Counter = Counter()  # 講師が入った日数
+        self.teacher_days: dict[str, set] = defaultdict(set)
         self.coverage: Counter = Counter()
         for p in ctx.previous:
             self.coverage[(p.week_key, p.genre_id)] += 1
@@ -67,9 +68,19 @@ class _State:
         self.rooms[slot_id].add(room_id)
         self.teachers[slot_id].add(teacher_id)
         self.courses[slot_id].append(course_id)
-        self.teacher_count[teacher_id] += 1
+        self.teacher_days[teacher_id].add(self.ctx.slots[slot_id].day)
+        self.teacher_count[teacher_id] = len(self.teacher_days[teacher_id])
         genre = self.ctx.genre_of(course_id)
         self.coverage[(self.ctx.slots[slot_id].week_key, genre)] += 1
+
+
+# 「Myスクール授業」は、早見表で通常の体験授業(1日最大2つ選べる枠)とは別の列に載る別枠の授業。
+# 体験授業一覧に一緒に載っているが、割り当て案には入れない
+SEPARATE_PREFIXES = ("Myスクール",)
+
+
+def is_regular_course(name: str) -> bool:
+    return not "".join(name.split()).startswith(SEPARATE_PREFIXES)
 
 
 def _candidates(ctx: Context) -> list[tuple[str, str, str]]:
@@ -80,7 +91,7 @@ def _candidates(ctx: Context) -> list[tuple[str, str, str]]:
             if not ctx.teachers[teacher_id].active or (teacher_id, slot.slot_id) not in ctx.availability:
                 continue
             for course_id in sorted(ctx.teacher_courses.get(teacher_id, ()), key=lambda c: ctx.course_name(c)):
-                if course_id in ctx.courses:
+                if course_id in ctx.courses and is_regular_course(ctx.course_name(course_id)):
                     out.append((slot.slot_id, teacher_id, course_id))
     return out
 
@@ -151,9 +162,25 @@ def generate(ctx: Context) -> list[Assignment]:
         if best is None:
             break
         st.add(*best)
+        _add_other_period(st, *best)
 
     result = _swap_in_unassigned(st.assignments, ctx, cands)
     return sorted(result, key=lambda a: (ctx.slots[a.slot_id].day, a.slot_id, ctx.room_name(a.room_id)))
+
+
+def _add_other_period(st: _State, slot_id: str, teacher_id: str, course_id: str, room_id: str) -> None:
+    """講師は1日の午前と午後で、同じ授業を同じ教室で続けて受け持つのがふつう(実際の早見表の形)。
+    同じ日のもう片方の枠にも対応できるなら、同じ授業・同じ教室で入れる。"""
+    ctx = st.ctx
+    slot = ctx.slots[slot_id]
+    other = next((s.slot_id for s in ctx.slots.values() if s.day == slot.day and s.slot_id != slot_id), None)
+    if other is None or (teacher_id, other) not in ctx.availability or teacher_id in st.teachers[other]:
+        return
+    if len(st.rooms[other]) >= ctx.settings.per_slot_max:
+        return
+    if room_id in st.rooms[other] or (room_id, other) in ctx.room_blocks:
+        return
+    st.add(other, teacher_id, course_id, room_id)
 
 
 def _swap_in_unassigned(assignments: list[Assignment], ctx: Context, cands) -> list[Assignment]:

@@ -180,3 +180,8 @@ def test_form_names_with_company_and_kanji_variants(repo):
     assert manager._match_name(manager._norm_name("株式会社サンプル工房上田_アニメ担当可能日"), by_name, amb) == "t4"
     assert manager._match_name(manager._norm_name("有限会社見知らぬ社青木"), by_name, amb) == "t1"
     assert amb == set()
+
+
+def test_myschool_courses_are_not_planned():
+    assert not solver.is_regular_course("Myスクール授業 デッサン講座")
+    assert solver.is_regular_course("デッサン体験")
