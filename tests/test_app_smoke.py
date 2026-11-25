@@ -80,3 +80,19 @@ def test_quickref_export_matches_sheet_layout(app_module):
     assert [d.date() for d in days] == sorted({s.day for s in b.ctx.slots.values()})
     assert ws["D4"].value == "ゲームお仕事体験"
     assert "先生" in ws["E5"].value  # 授業名の下の行は「講師 教室」
+
+
+def test_plan_tab_names_rows_without_slot(app_module):
+    """開催枠から外れた枠の行(古いデータ)は、ID ではなく「(開催枠なし)」と出す。"""
+    from scheduler import manager, sample_data
+
+    mod = app_module
+    month = "2026-12"
+    sample_data.seed_masters(mod.repo, confirmed_on=date(2026, 11, 1))
+    sample_data.seed_month(mod.repo, month)
+    manager.create_plan(mod.repo, month)
+    b = mod.repo.load(month)
+    last = b.ctx.sorted_slots()[-1]
+    mod.repo.save_slots(month, [(s.day, s.period) for s in b.ctx.sorted_slots() if s is not last])  # 古い作り方
+    body = str(mod.render("plan", "2026", "12", 0)[0])
+    assert "(開催枠なし)" in body

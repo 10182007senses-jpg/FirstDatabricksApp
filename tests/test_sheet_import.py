@@ -246,3 +246,21 @@ def test_history_prefers_usual_course(repo):
     assert ctx.history_score(aoki, robot) > ctx.history_score(aoki, sheet_import.stable_id("c", "ゲーム制作体験"))
     plan = solver.generate(ctx)
     assert [a.course_id for a in plan if a.teacher_id == aoki] == [robot]
+
+
+def test_removing_slot_cleans_old_rows(repo):
+    """開催枠から外した日の割り当て・対応可能日・教室ブロックは残さない(残すと「データ」違反になる)。"""
+    sample_data.seed_masters(repo, confirmed_on=date(2026, 11, 1))
+    sample_data.seed_month(repo, MONTH)
+    manager.create_plan(repo, MONTH)
+    b = repo.load(MONTH)
+    gone = b.ctx.sorted_slots()[-1]
+    b.assignments[0].manual = True
+    keep = [(s.day, s.period) for s in b.ctx.sorted_slots() if s.slot_id != gone.slot_id]
+    removed = manager.change_slots(repo, MONTH, keep)
+    after = repo.load(MONTH)
+    assert all(a.slot_id in after.ctx.slots for a in after.assignments)
+    assert all(s in after.ctx.slots for _, s in after.ctx.availability)
+    assert not any(f.rule == "データ" for f in rules.check_must(after.assignments, after.ctx))
+    assert removed["assignment"] == sum(1 for a in b.assignments if a.slot_id == gone.slot_id)
+    assert removed["availability"] > 0

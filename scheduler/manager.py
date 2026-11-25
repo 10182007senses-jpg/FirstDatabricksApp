@@ -205,6 +205,36 @@ def _match_name(name: str, by_name: dict[str, str], ambiguous: set[str]) -> str 
     return None
 
 
+def change_slots(repo: Repo, month: str, picks: list[tuple[date, str]]) -> dict[str, int]:
+    """開催枠を保存し直す。外した枠の割り当て・対応可能日・教室ブロックも消す(残すと「データ」違反になる)。
+
+    確定済みの案から割り当てが消えたときは、確定を外して下書きに戻す。消した件数を返す。
+    """
+    before = repo.load(month)
+    repo.save_slots(month, picks)
+    keep = {slot_id_of(d, p) for d, p in picks}
+    removed = {"assignment": 0, "manual": 0, "availability": 0, "room_block": 0}
+    if not before.adjustment:
+        return removed
+    gone = set(before.ctx.slots) - keep
+    old = [a for a in before.assignments if a.slot_id not in keep]
+    if old:
+        removed["assignment"] = len(old)
+        removed["manual"] = sum(1 for a in old if a.manual)
+        repo.save_assignments(month, [a for a in before.assignments if a.slot_id in keep])
+        if before.status in ("confirmed", "contacted"):
+            repo.set_status(month, "draft")
+    pairs = {p for p in before.ctx.availability if p[1] in keep}
+    removed["availability"] = len(before.ctx.availability) - len(pairs)
+    if removed["availability"]:
+        repo.save_availability(month, pairs)
+    blocks = {k: v for k, v in before.ctx.room_blocks.items() if k[1] in keep}
+    removed["room_block"] = len(before.ctx.room_blocks) - len(blocks)
+    if removed["room_block"] or gone:
+        repo.save_room_blocks(month, blocks)
+    return removed
+
+
 def import_availability(repo: Repo, month: str, records: list[dict], replace: bool = True) -> tuple[int, list[str]]:
     """対応可能日を取り込む。records の各行: {"name", "day", "period", "email"(任意)}。
 

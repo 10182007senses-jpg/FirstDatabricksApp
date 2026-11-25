@@ -450,9 +450,16 @@ def save_slots(_, values, ids, names, name_ids, year, month):
     days = {d for d, _ in picks}
     events = {date.fromisoformat(i["day"]): (n or "") for n, i in zip(names, name_ids)
               if date.fromisoformat(i["day"]) in days}
-    repo.save_slots(mk, picks)
+    removed = manager.change_slots(repo, mk, picks)
     repo.save_events(mk, events)
-    return done(f"開催枠を{len(picks)}件保存しました。")
+    notes = []
+    if removed["assignment"]:
+        manual = f"(うち手で直した行{removed['manual']}件)" if removed["manual"] else ""
+        notes.append(f"外した枠の割り当てを{removed['assignment']}件{manual}消しました。"
+                     "確定済みだった案は下書きに戻しました。「② 割り当て案」で確認してください")
+    if removed["availability"]:
+        notes.append(f"外した枠の対応可能日を{removed['availability']}件消しました")
+    return done(f"開催枠を{len(picks)}件保存しました。", "warning" if removed["assignment"] else "success", notes)
 
 
 def availability_card(bundle):
@@ -688,7 +695,11 @@ def plan_tab(bundle):
             {"name": "理由", "id": "reason", "editable": False},
         ],
         dropdown={
-            "slot_id": {"options": [{"label": short_slot(s), "value": s.slot_id} for s in c.sorted_slots()]},
+            # 開催枠から外れた枠の行(古いデータ)も、ID のままではなく分かる名前で出す
+            "slot_id": {"options": [{"label": short_slot(s), "value": s.slot_id} for s in c.sorted_slots()]
+                        + [{"label": f"(開催枠なし){sid[5:7].lstrip('0')}/{sid[8:10].lstrip('0')} "
+                                     f"{PERIOD_LABEL.get(sid[11:], sid[11:])}", "value": sid}
+                           for sid in sorted({a.slot_id for a in bundle.assignments} - set(c.slots))]},
             "course_id": {"options": [{"label": x.name, "value": x.course_id}
                                       for x in sorted(c.courses.values(), key=lambda x: x.name)]},
             "teacher_id": {"options": [{"label": t.name, "value": t.teacher_id}
