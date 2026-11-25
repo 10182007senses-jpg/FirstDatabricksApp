@@ -119,3 +119,11 @@ def test_availability_upload_callback_is_wired(app_module):
     text = "講師名,日付,時間帯\n青木,2026-12-06,午前\n"
     contents = "data:text/csv;base64," + base64.b64encode(text.encode()).decode()
     assert mod.import_upload.__wrapped__(contents, "a.csv", "2026", "12")[0] is not None
+
+
+def test_no_duplicate_callback_outputs(app_module):
+    """同じ出力・同じ入力のコールバックが2つあると、ブラウザで画面が真っ白になる。"""
+    from collections import Counter
+
+    outs = Counter(cb["output"] for cb in app_module.app._callback_list)
+    assert [o for o, n in outs.items() if n > 1] == []

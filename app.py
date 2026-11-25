@@ -333,8 +333,8 @@ for _input in [
     Input("blocks-table", "data_timestamp"), Input("targets-table", "data_timestamp"),
     Input("plan-table", "data_timestamp"), Input({"type": "master", "name": ALL}, "data_timestamp"),
     Input({"type": "setting", "key": ALL}, "value"),
-    # 行を足しただけでも、保存するまでは変更あり
-    Input("blocks-add", "n_clicks"), Input("plan-add", "n_clicks"), Input({"type": "master-add", "name": ALL}, "n_clicks"),
+    # マスターの「行を追加」(使えない教室・割り当て表の行の追加は、それぞれのコールバックで変更ありにしている)
+    Input({"type": "master-add", "name": ALL}, "n_clicks"),
 ]:
     app.callback(Output("dirty", "data", allow_duplicate=True), _input, prevent_initial_call=True)(_mark_dirty)
 
@@ -741,6 +741,12 @@ def plan_tab(bundle):
         button("修正を保存して再チェック", "plan-save", primary=True),
     ], gap="xs", mt="sm")
 
+    views = dmc.Tabs([
+        dmc.TabsList([dmc.TabsTab("表で直す", value="table"), dmc.TabsTab("早見表の形で見る", value="quickref")]),
+        dmc.TabsPanel(html.Div([table, edit_row]), value="table", pt="sm"),
+        dmc.TabsPanel(quickref_view(bundle, flagged), value="quickref", pt="sm"),
+    ], value="table", id="plan-view", persistence=True, persistence_type="session")
+
     if not bundle.assignments:  # 案がないうちは、件数や未充足の一覧は出さない
         return html.Div([check, buttons])
     return html.Div([
@@ -760,10 +766,33 @@ def plan_tab(bundle):
         dmc.Paper([dmc.Text("組めなかった理由", fw=600, size="sm", mb="xs"),
                    dmc.List([dmc.ListItem(dmc.Text(n, size="sm")) for n in rv.unplaced], size="sm")],
                   withBorder=True, radius="md", p="md", mb="sm") if rv.unplaced and bundle.assignments else None,
-        section("割り当て表", table, edit_row,
-                hint="セルを選ぶと直せます。左にオレンジの線がある行は、必ず守るルールに違反しています。")
+        section("割り当て表", views,
+                hint="セルを選ぶと直せます。左にオレンジの線がある行は、必ず守るルールに違反しています。"
+                     "「早見表の形で見る」では、広報と共有する早見表と同じ並び(1日ごと、午前午後まとめ)で確かめられます。")
         if bundle.assignments else alert("まだ案がありません。「割り当て案を作る」を押してください。", "info"),
     ])
+
+
+def quickref_view(bundle, flagged: set[str]):
+    """案を、早見表と同じ並び(1日ごと、授業名と「講師 教室」、※午前のみ・午後のみ)で見せる。読むだけ。"""
+    c = bundle.ctx
+    rows = []
+    for day, courses in quickref.day_courses(bundle.assignments, c).items():
+        cards = [
+            dmc.Paper([
+                dmc.Text(name.replace("\n", " "), size="sm", fw=600),
+                dmc.Text(who, size="xs", c="dimmed"),
+            ], withBorder=True, radius="sm", p="xs",
+                style={"background": "#fff4e6" if ids & flagged else "#fffbea",
+                       "borderLeft": "3px solid #fd7e14" if ids & flagged else None, "minWidth": 180})
+            for name, who, _, ids in courses
+        ]
+        rows.append(dmc.Group([
+            dmc.Stack([dmc.Text(f"{day.month}/{day.day}({WEEKDAYS[day.weekday()]})", fw=700),
+                       dmc.Text(c.event_name(day) or "", size="xs", c="dimmed")], gap=0, w=150),
+            dmc.Group(cards, gap="xs", style={"flex": 1}),
+        ], align="flex-start", wrap="nowrap", py="sm", style={"borderBottom": f"1px solid {BORDER}"}))
+    return dmc.Stack(rows, gap=0) if rows else dmc.Text("割り当てがありません。", size="sm", c="dimmed")
 
 
 @app.callback(*NOTICE, Input("plan-create", "n_clicks"), *MONTH_STATE, prevent_initial_call=True)

@@ -28,25 +28,26 @@ MIN_COLUMNS = 5  # 早見表は E〜I の5列
 
 
 def day_courses(assignments: list[Assignment], ctx: Context) -> dict:
-    """日付 -> [(授業名, 「講師 教室」, 時間帯の集合)]。同じ授業・講師・教室の午前と午後は1つにまとめる。"""
+    """日付 -> [(授業名, 「講師 教室」, 時間帯の集合, 割り当てIDの集合)]。同じ授業・講師・教室の午前と午後は1つにまとめる。"""
     grouped: dict = {}
     for a in assignments:
         slot = ctx.slots.get(a.slot_id)
         if slot is None:
             continue
         key = (a.course_id, a.teacher_id, a.room_id)
-        grouped.setdefault(slot.day, {}).setdefault(key, set()).add(slot.period)
+        grouped.setdefault(slot.day, {}).setdefault(key, []).append((slot.period, a.assignment_id))
     out = {}
     for day, items in sorted(grouped.items()):
         rows = []
-        for (course_id, teacher_id, room_id), periods in items.items():
+        for (course_id, teacher_id, room_id), pairs in items.items():
+            periods = {p for p, _ in pairs}
             name = ctx.course_name(course_id)
             if periods == {"AM"}:
                 name += "\n※午前のみ"
             elif periods == {"PM"}:
                 name += "\n※午後のみ"
             who = f"{ctx.teacher_name(teacher_id)}先生 {ctx.room_name(room_id)}"
-            rows.append((name, who, periods))
+            rows.append((name, who, periods, {i for _, i in pairs}))
         # 午前午後の両方ある授業を先に、そのあと午前のみ・午後のみ
         rows.sort(key=lambda r: (len(r[2]) != 2, sorted(r[2]) != ["AM"], r[0]))
         out[day] = rows
@@ -99,7 +100,7 @@ def build_quickref(assignments: list[Assignment], ctx: Context) -> bytes:
             col = first + i % width
             top = row + (i // width) * 2
             if i < len(courses):
-                name, who, _ = courses[i]
+                name, who = courses[i][:2]
                 put(top, col, name, fill=COURSE_FILL)
                 put(top + 1, col, who, fill=COURSE_FILL)
             else:
