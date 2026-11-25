@@ -222,3 +222,25 @@ def test_import_history_matches_masters(repo):
     # 同じ月を取り込み直すと置き換わる
     n, _ = manager.import_history_from_book(repo, {"202611": quickref_rows(datetime(2026, 11, 8))[:3]})
     assert len(repo.read("history")) == 3
+
+
+def test_history_prefers_usual_course(repo):
+    """過去の早見表で、その講師がいつも受け持っている授業を優先する。"""
+    from datetime import datetime
+
+    manager.import_masters(repo, COURSE_ROWS, ROOM_ROWS)
+    rows = repo.read("teacher_course")
+    aoki = sheet_import.stable_id("t", "青木")
+    robot = sheet_import.stable_id("c", "ロボット体験")
+    repo.replace("teacher_course", rows + [{"teacher_id": aoki, "course_id": robot}])
+    past = quickref_rows(datetime(2026, 10, 4))
+    past[1][4], past[2][4] = "ロボット体験", "青木先生 lab1"  # 先月の青木先生はロボット体験
+    past[1][5] = past[3][4] = None
+    manager.import_history_from_book(repo, {"202610": past})
+    day = date(2026, 11, 8)
+    repo.save_slots("2026-11", [(day, "AM"), (day, "PM")])
+    manager.import_availability(repo, "2026-11", [{"name": "青木", "day": day, "period": "AM"}])
+    ctx = repo.load("2026-11").ctx
+    assert ctx.history_score(aoki, robot) > ctx.history_score(aoki, sheet_import.stable_id("c", "ゲーム制作体験"))
+    plan = solver.generate(ctx)
+    assert [a.course_id for a in plan if a.teacher_id == aoki] == [robot]

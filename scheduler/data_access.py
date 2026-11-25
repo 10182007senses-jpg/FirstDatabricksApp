@@ -286,6 +286,12 @@ class Repo:
         for r in self.read("event", "day >= ? AND day <= ?", [first, last]):
             if r["event_name"]:
                 ctx.events[r["day"]] = r["event_name"]
+        # 過去の実績(早見表)。対象月より前の分だけ数える
+        for r in self.read("history", "day < ?", [first]):
+            t, c = r["teacher_id"], r["course_id"]
+            ctx.history_pairs[(t, c)] = ctx.history_pairs.get((t, c), 0) + 1
+            ctx.history_teachers[t] = ctx.history_teachers.get(t, 0) + 1
+            ctx.history_courses[c] = ctx.history_courses.get(c, 0) + 1
         for r in self.read("room_block", "slot_id LIKE ?", [f"{month}-%"]):
             if r["slot_id"] in ctx.slots:
                 ctx.room_blocks[(r["room_id"], r["slot_id"])] = r["reason"] or ""

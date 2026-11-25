@@ -50,7 +50,7 @@ class _State:
             for r in ctx.rooms
         }
 
-    def pick_room(self, slot_id: str, course_id: str) -> str | None:
+    def pick_room(self, slot_id: str, course_id: str, teacher_id: str | None = None) -> str | None:
         slot = self.ctx.slots[slot_id]
         options = [
             r for r in rules.free_rooms(self.ctx, slot_id, self.rooms[slot_id])
@@ -128,6 +128,9 @@ def _gain(st: _State, slot_id: str, teacher_id: str, course_id: str, room_id: st
 
     # 枠を目安の数まで埋める。目安を超える分は R5・R6・R8 の得がある場合だけ
     gain += s.w_fill if n_slot < s.per_slot_target else -s.w_fill * 0.5
+    # 過去の早見表でよくある組み合わせを優先する(目安を超えて詰め込む理由にはしない)
+    if n_slot < s.per_slot_target:
+        gain += s.w_history * ctx.history_score(teacher_id, course_id)
     if course_id in st.courses[slot_id]:
         gain -= s.w_fill * 2  # 同じ枠に同じ授業は並べない
     elif any(ctx.genre_of(c) == genre for c in st.courses[slot_id]):
@@ -153,7 +156,7 @@ def generate(ctx: Context) -> list[Assignment]:
         for slot_id, teacher_id, course_id in cands:
             if teacher_id in st.teachers[slot_id] or len(st.rooms[slot_id]) >= ctx.settings.per_slot_max:
                 continue
-            room_id = st.pick_room(slot_id, course_id)
+            room_id = st.pick_room(slot_id, course_id, teacher_id)
             if room_id is None:
                 continue
             g = _gain(st, slot_id, teacher_id, course_id, room_id, gaps_now, gap_cache)

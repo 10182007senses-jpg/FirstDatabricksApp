@@ -121,13 +121,14 @@ class Settings:
     w_r10: int = 15  # 3月は空き教室を残す
     w_fill: int = 10  # 枠を目安まで埋める
     w_balance: int = 3  # 特定の講師に偏らせない
+    w_history: int = 40  # 過去の早見表でよくある「講師と授業」の組・よく開く授業を優先する
     stale_days: int = 180  # ソフト情報の確認日がこれより古ければ警告
     reserve_months: tuple[int, ...] = (3,)  # 空き教室を残す月
     reserve_rooms: int = 1  # 残す教室数
 
     INT_FIELDS = (
         "per_slot_target", "per_slot_max", "w_r5", "w_r6", "w_r8",
-        "w_r10", "w_fill", "w_balance", "stale_days", "reserve_rooms",
+        "w_r10", "w_fill", "w_balance", "w_history", "stale_days", "reserve_rooms",
     )
 
 
@@ -153,7 +154,19 @@ class Context:
     room_blocks: dict[tuple[str, str], str] = field(default_factory=dict)  # (room_id, slot_id) -> 理由
     week_targets: dict[tuple[str, str], int] = field(default_factory=dict)  # (week_key, genre_id) -> コマ数
     previous: list[PrevAssignment] = field(default_factory=list)
+    # 過去の実績(早見表)。(講師, 授業) -> 回数、講師 -> 回数、授業 -> 回数。対象月より前の分だけ
+    history_pairs: dict[tuple[str, str], int] = field(default_factory=dict)
+    history_teachers: dict[str, int] = field(default_factory=dict)
+    history_courses: dict[str, int] = field(default_factory=dict)
     settings: Settings = field(default_factory=Settings)
+
+    def history_score(self, teacher_id: str, course_id: str) -> float:
+        """過去の実績から見た「いつもの組み合わせ」らしさ(0〜1.5)。
+        その講師が受け持った授業のうちこの授業の割合 + 0.5 × この授業のよく開かれる度合い。"""
+        n = self.history_teachers.get(teacher_id, 0)
+        share = self.history_pairs.get((teacher_id, course_id), 0) / n if n else 0.0
+        top = max(self.history_courses.values(), default=0)
+        return share + (0.5 * self.history_courses.get(course_id, 0) / top if top else 0.0)
 
     def sorted_slots(self) -> list[Slot]:
         return sorted(self.slots.values(), key=lambda s: (s.day, s.period))

@@ -983,10 +983,13 @@ def master_tab(bundle):
             dmc.Group([
                 button("シートの内容を取り込む", "master-sheet", primary=True),
                 upload_button("master-upload", "調整共有シートの Excel を選ぶ", accept=".xlsx"),
+                upload_button("history-upload", "過去の早見表の Excel を選ぶ", accept=".xlsx"),
                 demo,
             ], gap="xs"),
             hint="「体験授業一覧」(授業・講師・必要なソフト・優先教室・予備教室・定員)と「教室」(教室ごとのソフト)を読み込みます。"
-                 "講師・授業・教室を直すときは、スプレッドシートを直してから取り込み直してください。系統の設定は残ります。",
+                 "講師・授業・教室を直すときは、スプレッドシートを直してから取り込み直してください。系統の設定は残ります。"
+                 "過去の早見表を取り込むと、案を作るとき「その講師がいつも受け持つ授業」「よく開く授業」を優先します"
+                 "(調整共有シートを取り込んでから選んでください)。",
         ),
         # 保存して画面を読み直しても、開いていたタブに戻る
         dmc.Tabs([dmc.TabsList(tabs)] + panels, id="master-tabs", value="course", persistence=True,
@@ -1075,6 +1078,14 @@ def import_sheet_upload(contents):
     return imported(*manager.import_masters_from_book(repo, sheet_import.read_workbook(upload_bytes(contents))))
 
 
+@app.callback(*NOTICE, Input("history-upload", "contents"), prevent_initial_call=True)
+@action
+def import_history_upload(contents):
+    """体験授業早見表の各月のシートを実績として取り込む。案を作るとき、いつもの組み合わせを優先する。"""
+    n, notes = manager.import_history_from_book(repo, sheet_import.read_workbook(upload_bytes(contents)))
+    return done(f"過去の割り当てを{n}件取り込みました。次に案を作るときから使います。", "success" if n else "warning", notes)
+
+
 @app.callback(*NOTICE, Input("demo-seed", "submit_n_clicks"), *MONTH_STATE, prevent_initial_call=True)
 @action
 def seed_demo(_, year, month):
@@ -1098,6 +1109,7 @@ SETTING_LABELS = [
     ("w_r10", "重み:3月は空き教室を残す(R10)", ""),
     ("w_fill", "重み:枠を目安の数まで埋める", ""),
     ("w_balance", "重み:特定の講師に偏らせない", ""),
+    ("w_history", "重み:過去の早見表でよくある組み合わせを優先", "0 にすると実績を使わない"),
     ("reserve_rooms", "3月に各枠で残す空き教室の数", ""),
     ("stale_days", "ソフト情報の確認日が古いとみなす日数", "これより古い情報を使うと警告を出します"),
 ]
