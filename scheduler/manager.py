@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import csv
+import re
 import io
 from dataclasses import dataclass
 from datetime import date, datetime
@@ -149,8 +150,16 @@ def mark_contacted(repo: Repo, month: str) -> None:
 
 # ---------------------------------------------------------------- F1: 対応可能日の取り込み
 
+# 名前の異体字(フォームとマスターで書き方が違うことが多い)
+_KANJI = str.maketrans({"齋": "斎", "齊": "斎", "斉": "斎", "髙": "高", "﨑": "崎", "邊": "辺", "邉": "辺", "濵": "浜",
+                        "濱": "浜", "廣": "広", "德": "徳"})
+_COMPANY = re.compile(r"(有限会社|株式会社|合同会社|一般社団法人|\(有\)|\(株\)|（有）|（株）)")
+
+
 def _norm_name(name: str) -> str:
-    return "".join(str(name or "").split()).removesuffix("先生")
+    """名前を照合用にそろえる。空白・「先生」・会社の種類・「_」から後ろのメモを落とし、異体字をそろえる。"""
+    text = "".join(str(name or "").split()).split("_")[0].removesuffix("先生")
+    return _COMPANY.sub("", text).translate(_KANJI)
 
 
 def _parse_day(text: str, month: str) -> date | None:
@@ -181,6 +190,14 @@ def _match_name(name: str, by_name: dict[str, str], ambiguous: set[str]) -> str 
     if name in by_name:
         return by_name[name]
     hits = {tid for key, tid in by_name.items() if key and (name.startswith(key) or key.startswith(name))}
+    # 「会社名+担当者名」と書かれていて、会社名のあとが別の講師の名前なら、その講師にする
+    for key, tid in by_name.items():
+        rest = name[len(key):] if key and name.startswith(key) else ""
+        inner = {t for k, t in by_name.items() if k and rest and (rest.startswith(k) or k.startswith(rest))}
+        if len(inner) == 1:
+            return inner.pop()
+    if not hits:  # 「(マスターにない会社名)+担当者名」のように、後ろに講師の名前があるとき
+        hits = {tid for key, tid in by_name.items() if len(key) >= 2 and name.endswith(key)}
     if len(hits) == 1:
         return hits.pop()
     if len(hits) > 1:

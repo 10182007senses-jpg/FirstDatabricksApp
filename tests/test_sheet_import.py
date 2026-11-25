@@ -169,3 +169,14 @@ def test_import_masters_from_sheet_raw(repo):
     repo.insert("sheet_raw", rows)
     counts, _ = manager.import_masters_from_sheet_raw(repo)
     assert counts["course"] == 3 and counts["room"] == 6
+
+
+def test_form_names_with_company_and_kanji_variants(repo):
+    by_name = {manager._norm_name(k): v for k, v in {"青木": "t1", "齋藤": "t2", "サンプル工房": "t3", "上田": "t4"}.items()}
+    amb: set[str] = set()
+    assert manager._match_name(manager._norm_name("有限会社サンプル工房"), by_name, amb) == "t3"
+    assert manager._match_name(manager._norm_name("斉藤 花子"), by_name, amb) == "t2"  # 斉・齋は同じ字として扱う
+    # 会社名のあとに担当者の名前があるときは、担当者を選ぶ
+    assert manager._match_name(manager._norm_name("株式会社サンプル工房上田_アニメ担当可能日"), by_name, amb) == "t4"
+    assert manager._match_name(manager._norm_name("有限会社見知らぬ社青木"), by_name, amb) == "t1"
+    assert amb == set()
