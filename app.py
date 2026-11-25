@@ -1128,19 +1128,32 @@ SETTING_LABELS = [
 
 def settings_tab(bundle):
     s = bundle.ctx.settings
+    default = Settings()
+
+    def label_of(key, label, hint):
+        changed = getattr(s, key) != getattr(default, key)
+        texts = [dmc.Group([dmc.Text(label, size="sm"),
+                            dmc.Badge(f"変更済み(初期値 {getattr(default, key)})", color="orange", variant="light",
+                                      size="sm") if changed else None], gap="xs")]
+        if hint:
+            texts.append(dmc.Text(hint, size="xs", c="dimmed"))
+        return dmc.Stack(texts, gap=0, style={"flex": 1})
+
     rows = [
         dmc.Group([
-            dmc.Stack([dmc.Text(label, size="sm"), dmc.Text(hint, size="xs", c="dimmed")] if hint
-                      else [dmc.Text(label, size="sm")], gap=0, style={"flex": 1}),
+            label_of(key, label, hint),
             dmc.NumberInput(id={"type": "setting", "key": key}, min=0, step=1, value=getattr(s, key),
                             size="sm", w=120, allowDecimal=False),
         ], justify="space-between", py=6, style={"borderBottom": f"1px solid {BORDER}"})
         for key, label, hint in SETTING_LABELS
     ]
+    reset = dcc.ConfirmDialogProvider(
+        dmc.Button("すべて初期値に戻す", variant="default", size="sm", radius="md"), id="settings-reset",
+        message="設定をすべて初期値に戻します。保存していた値は消えます。よろしいですか?")
     return section(
         "割り当ての作り方の設定",
         dmc.Stack(rows, gap=0, maw=640),
-        button("設定を保存", "settings-save", primary=True, mt="md"),
+        dmc.Group([button("設定を保存", "settings-save", primary=True), reset], gap="xs", mt="md"),
         hint="なるべく守るルール(Should)どうしがぶつかったときは、重みが大きいほうを優先します。"
              "初期値は仮のものです。先生と相談して決めた値に直してください。",
     )
@@ -1160,6 +1173,13 @@ def save_settings(_, values, ids):
         return alert("「上限」は「目安」以上、かつ1以上にしてください。", "danger"), dash.no_update
     repo.save_settings(s)
     return done("設定を保存しました。次に案を作るときから反映されます。")
+
+
+@app.callback(*NOTICE, Input("settings-reset", "submit_n_clicks"), prevent_initial_call=True)
+@action
+def reset_settings(_):
+    repo.reset_settings()
+    return done("設定をすべて初期値に戻しました。次に案を作るときから反映されます。")
 
 
 if __name__ == "__main__":

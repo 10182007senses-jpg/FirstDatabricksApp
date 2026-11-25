@@ -96,3 +96,16 @@ def test_plan_tab_names_rows_without_slot(app_module):
     mod.repo.save_slots(month, [(s.day, s.period) for s in b.ctx.sorted_slots() if s is not last])  # 古い作り方
     body = str(mod.render("plan", "2026", "12", 0)[0])
     assert "(開催枠なし)" in body
+
+
+def test_settings_store_only_changes_and_reset(app_module):
+    from scheduler.models import Settings
+
+    repo = app_module.repo
+    s = Settings()
+    s.w_r5 = 99
+    repo.save_settings(s)
+    assert [r["setting_key"] for r in repo.read("app_setting")] == ["w_r5"]  # 変えた項目だけ
+    assert "変更済み" in str(app_module.render("settings", "2026", "12", 0)[0])
+    repo.reset_settings()
+    assert repo.load_settings() == Settings()

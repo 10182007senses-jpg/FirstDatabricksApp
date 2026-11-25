@@ -217,8 +217,14 @@ class Repo:
         return s
 
     def save_settings(self, s: Settings) -> None:
+        """初期値と違う項目だけ保存する(あとで初期値を見直したとき、変えていない項目には新しい初期値が効くように)。"""
+        default = Settings()
         self.replace("app_setting", [
-            {"setting_key": k, "setting_value": str(getattr(s, k))} for k in Settings.INT_FIELDS])
+            {"setting_key": k, "setting_value": str(getattr(s, k))} for k in Settings.INT_FIELDS
+            if getattr(s, k) != getattr(default, k)])
+
+    def reset_settings(self) -> None:
+        self.delete("app_setting")
 
     # ------------------------------------------------------------ 月次データ
 
