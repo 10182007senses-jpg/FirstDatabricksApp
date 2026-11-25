@@ -34,8 +34,8 @@
 - ファイル: scheduler/data_access.py, scheduler/manager.py, app.py, tests
 
 ### Checkpoint 1
-- [ ] pytest 全通過
-- [ ] 11/29 事例(案作成→枠外す)で違反出ない
+- [x] pytest 全通過
+- [x] 11/29 事例(案作成→枠外す)で違反出ない
 - [ ] ユーザー確認
 
 ## Phase 2: 案の精度
