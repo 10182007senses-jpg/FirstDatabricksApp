@@ -312,3 +312,10 @@ def test_apply_genre_guesses_keeps_existing(repo):
     names = {g["genre_id"]: g["name"] for g in repo.read("genre")}
     assert names[by["ゲーム制作体験"]] == "ゲーム" and names[by["手描きイラスト体験"]] == "イラスト・アニメ"
     assert n == 2 and unknown == []
+
+
+def test_import_tells_when_dates_are_another_month(repo):
+    manager.import_masters(repo, COURSE_ROWS, ROOM_ROWS)
+    repo.save_slots(MONTH, [(D1, "AM")])
+    n, notes = manager.import_availability(repo, MONTH, [{"name": "青木", "day": date(2026, 11, 8), "period": "AM"}])
+    assert n == 0 and any("2026-11" in x and "対象月" in x for x in notes)

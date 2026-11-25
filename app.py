@@ -81,7 +81,12 @@ ALERT_COLOR = {"success": "teal", "info": "blue", "warning": "orange", "danger":
 def alert(text, color="success", notes=None, title=None):
     body = [dmc.Text(text, size="sm")]
     if notes:
-        body.append(dmc.List([dmc.ListItem(dmc.Text(n, size="sm")) for n in notes], mt=4, size="sm"))
+        # 名前の一覧のような長い注意は、2行まで見せて残りは「すべて表示」で開く
+        def item(n):
+            text = dmc.Text(n, size="sm")
+            return dmc.ListItem(dmc.Spoiler(text, maxHeight=44, showLabel="すべて表示", hideLabel="閉じる")
+                                if len(n) > 120 else text)
+        body.append(dmc.List([item(n) for n in notes], mt=4, size="sm"))
     return dmc.Alert(body, title=title, color=ALERT_COLOR.get(color, color), variant="light",
                      withCloseButton=True, radius="md", mb="md")
 
@@ -503,7 +508,14 @@ def availability_card(bundle):
 @action
 def import_form(_, year, month):
     n, notes = manager.import_availability_from_form(repo, month_key(year, month))
-    return done(f"フォームの回答から{n}件を取り込みました。", "success" if n else "warning", notes)
+    return done(availability_result(n), "success" if n else "warning", notes)
+
+
+def availability_result(n: int) -> str:
+    if not n:
+        return "対応可能日は1件も入りませんでした。下の理由を確かめてください。"
+    return (f"対応可能日を{n}件(講師×開催枠)入れました。前の対応可能日は置き換えています。"
+            "下の「講師の対応可能日」の表で確かめられます。")
 
 
 @app.callback(*NOTICE, Input("av-upload", "contents"), State("av-upload", "filename"), *MONTH_STATE,
@@ -516,7 +528,7 @@ def import_upload(contents, filename, year, month):
     else:
         records = manager.parse_availability_csv(decode_upload(contents))
         n, notes = manager.import_availability(repo, mk, records)
-    return done(f"{n}件を取り込みました。", "success" if n else "warning", notes)
+    return done(availability_result(n), "success" if n else "warning", notes)
 
 
 @app.callback(*NOTICE, Input("av-save", "n_clicks"),

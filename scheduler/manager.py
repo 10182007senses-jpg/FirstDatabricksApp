@@ -252,6 +252,7 @@ def import_availability(repo: Repo, month: str, records: list[dict], replace: bo
     pairs: set[tuple[str, str]] = set() if replace else set(ctx.availability)
     unknown: set[str] = set()
     no_slot: set[str] = set()
+    other_month: set[str] = set()
     bad = 0
 
     for rec in records:
@@ -261,6 +262,7 @@ def import_availability(repo: Repo, month: str, records: list[dict], replace: bo
             bad += 1
             continue
         if not (first <= day <= last):
+            other_month.add(f"{day.year}-{day.month:02d}")
             continue
         email = str(rec.get("email") or "").strip().lower()
         teacher_id = by_email.get(email) if email else None
@@ -279,6 +281,9 @@ def import_availability(repo: Repo, month: str, records: list[dict], replace: bo
                 no_slot.add(f"{day.month}/{day.day} {PERIOD_LABEL[period]}")
 
     notes = []
+    if other_month:
+        notes.append(f"対象月({month})以外の日付の回答は読み飛ばしました。回答の日付は {'・'.join(sorted(other_month))} です。"
+                     "画面上の対象月を合わせてから取り込んでください")
     if ambiguous:
         notes.append("同じ名字の講師が複数いて決められなかった名前:" + "、".join(sorted(ambiguous))
                      + "。マスターの講師名をフルネームにするか、メールアドレスを登録してください")
