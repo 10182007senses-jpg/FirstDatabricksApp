@@ -122,9 +122,13 @@ def check_must(assignments: list[Assignment], ctx: Context) -> list[Finding]:
     for a in assignments:
         slot: Slot | None = ctx.slots.get(a.slot_id)
         ids = (a.assignment_id,)
-        if slot is None or a.teacher_id not in ctx.teachers or a.course_id not in ctx.courses \
-                or a.room_id not in ctx.rooms:
-            findings.append(Finding("データ", MUST, "枠・講師・授業・教室のいずれかがマスターに登録されていません", ids))
+        missing = [label for label, ok in (
+            (f"開催枠({a.slot_id})", slot is not None), (f"講師({a.teacher_id})", a.teacher_id in ctx.teachers),
+            (f"授業({a.course_id})", a.course_id in ctx.courses), (f"教室({a.room_id})", a.room_id in ctx.rooms)) if not ok]
+        if missing:
+            # 案を作ったあとに開催枠やマスターを変えると起きる。どれが消えたかを示す
+            findings.append(Finding("データ", MUST, "・".join(missing) + "が今は登録されていません"
+                                    "(案を作ったあとに開催枠やマスターを変えた場合は、案を作り直してください)", ids))
             continue
         who = f"{slot.label} {ctx.teacher_name(a.teacher_id)}「{ctx.course_name(a.course_id)}」"
         by_room[(a.slot_id, a.room_id)].append(a)
