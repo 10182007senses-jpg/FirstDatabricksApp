@@ -30,6 +30,7 @@ def main() -> None:
     ap.add_argument("--given-teachers", action="store_true",
                     help="対応可能日を、実際に入った講師のその日の午前午後だけにする")
     ap.add_argument("--no-history", action="store_true", help="過去の早見表を使わない")
+    ap.add_argument("--guess-genres", action="store_true", help="系統の決まっていない授業に、授業名から推定した系統を入れる")
     args = ap.parse_args()
 
     month = args.month
@@ -41,6 +42,8 @@ def main() -> None:
     repo = Repo(SqliteBackend(":memory:"))
     repo.init_schema()
     manager.import_masters_from_book(repo, sheet_import.read_workbook(Path(args.shared).read_bytes()))
+    if args.guess_genres:
+        manager.apply_genre_guesses(repo)
     if not args.no_history:
         manager.import_history_from_book(repo, quick)  # 対象月以降の分は、案を作るときに使われない
 

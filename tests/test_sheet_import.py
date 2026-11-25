@@ -286,3 +286,29 @@ def test_reset_all_empties_every_table(repo):
     repo.reset_all()
     from scheduler import schema
     assert all(not repo.read(t) for t in schema.TABLES)
+
+
+def test_guess_genre_from_course_names():
+    g = sheet_import.guess_genre
+    assert g("ゲームプログラミング体験") == "ゲーム"
+    assert g("AIプログラミング体験") == "IT・AI"
+    assert g("CGアニメーション(3dsMax)") == "CG・映像"
+    assert g("デジタルアニメ制作体験") == "イラスト・アニメ"
+    assert g("esports動画編集体験") == "esports"
+    assert g("機械工作基礎体験") == "ロボット"
+    assert g("ふしぎな体験") is None
+
+
+def test_apply_genre_guesses_keeps_existing(repo):
+    manager.import_masters(repo, COURSE_ROWS, ROOM_ROWS)
+    rows = repo.read("course")
+    for r in rows:
+        if r["name"] == "ロボット体験":
+            r["genre_id"] = "g_mine"
+    repo.replace("course", rows)
+    n, unknown = manager.apply_genre_guesses(repo)
+    by = {r["name"]: r["genre_id"] for r in repo.read("course")}
+    assert by["ロボット体験"] == "g_mine"  # 決まっている授業は変えない
+    names = {g["genre_id"]: g["name"] for g in repo.read("genre")}
+    assert names[by["ゲーム制作体験"]] == "ゲーム" and names[by["手描きイラスト体験"]] == "イラスト・アニメ"
+    assert n == 2 and unknown == []

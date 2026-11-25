@@ -321,6 +321,34 @@ def import_availability_from_book(repo: Repo, month: str, book: dict[str, list[l
 
 # ---------------------------------------------------------------- F2: 調整共有シートからマスターを取り込む
 
+def apply_genre_guesses(repo: Repo) -> tuple[int, list[str]]:
+    """系統が決まっていない授業に、授業名から推定した系統を入れる(決まっている授業は変えない)。
+
+    推定した系統がまだ系統マスターになければ足す。(入れた件数, 推定できなかった授業名) を返す。
+    """
+    genres = repo.read("genre")
+    by_name = {g["name"]: g["genre_id"] for g in genres}
+    courses = repo.read("course")
+    changed, unknown, new_genres = 0, [], []
+    for c in courses:
+        if c.get("genre_id"):
+            continue
+        name = sheet_import.guess_genre(c["name"])
+        if name is None:
+            unknown.append(c["name"])
+            continue
+        if name not in by_name:
+            by_name[name] = sheet_import.stable_id("g", name)
+            new_genres.append({"genre_id": by_name[name], "name": name, "r5_target": True})
+        c["genre_id"] = by_name[name]
+        changed += 1
+    if new_genres:
+        repo.insert("genre", new_genres)
+    if changed:
+        repo.replace("course", courses)
+    return changed, unknown
+
+
 def import_masters(repo: Repo, course_rows: list[list], room_rows: list[list]) -> tuple[dict[str, int], list[str]]:
     existing = {t: repo.read(t) for t in ("course", "teacher")}
     result = sheet_import.parse_shared_sheet(course_rows, room_rows, existing)

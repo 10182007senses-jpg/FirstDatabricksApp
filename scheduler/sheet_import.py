@@ -321,3 +321,27 @@ def parse_quickref(rows: list[list], sheet_title: str) -> list[dict]:
                     out.append({"day": day, "period": p, "course": text.split("※")[0].strip(),
                                 "teacher": teacher, "room": room})
     return out
+
+
+# ---------------------------------------------------------------- 系統の推定
+
+# 早見表の分野説明会と同じ6分野。上から順に、授業名にキーワードが入っているかを見る(最初に当たった分野にする)
+GENRE_RULES: list[tuple[str, tuple[str, ...]]] = [
+    ("esports", ("esports", "eスポーツ", "ゲーマー", "valorant", "varolant", "youtube")),
+    ("ロボット", ("ロボット", "機械工作", "3dプリンター", "電子工作")),
+    ("ゲーム", ("ゲーム", "unreal", "unity", "プランナー")),
+    ("CG・映像", ("cg", "maya", "zbrush", "3dsmax", "vfx", "動画", "映像", "モーショングラフィック", "エフェクト",
+                 "blender")),
+    ("イラスト・アニメ", ("イラスト", "キャラクター", "アニメ", "live2d", "デッサン", "手描き", "手書き", "ミニキャラ",
+                    "グラフィックデザイン", "漫画", "マンガ")),
+    ("IT・AI", ("プログラミング", "python", "ai", "web", "ハッカー", "セキュリティ", "iot", "エンジニア", "アプリ")),
+]
+
+
+def guess_genre(course_name: str) -> str | None:
+    """授業名から系統(分野)を推定する。当たらなければ None。推定なので、画面で確かめてから使う。"""
+    text = unicodedata.normalize("NFKC", str(course_name or "")).lower().replace(" ", "")
+    for genre, words in GENRE_RULES:
+        if any(w in text for w in words):
+            return genre
+    return None
