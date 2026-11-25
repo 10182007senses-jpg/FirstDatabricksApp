@@ -327,6 +327,45 @@ def parse_availability_csv(text: str) -> list[dict]:
     return out
 
 
+# ---------------------------------------------------------------- 過去の早見表(実績)の取り込み
+
+def import_history_from_book(repo: Repo, book: dict[str, list[list]]) -> tuple[int, list[str]]:
+    """体験授業早見表の Excel の各月のシートから、実際の割り当てを取り込む(取り込んだ月は置き換える)。
+
+    案を作るとき「その講師がいつも受け持つ授業」「よく開く授業」を優先するのに使う。
+    """
+    teachers = repo.read("teacher")
+    by_name = {_norm_name(t["name"]): t["teacher_id"] for t in teachers}
+    courses = {c["course_id"]: c["name"] for c in repo.read("course")}
+    rooms = {sheet_import.norm(r["name"]).lower(): r["room_id"] for r in repo.read("room")}
+    titles = [t for t in book if sheet_import.is_quickref_sheet(t)]
+    if not titles:
+        raise ValueError("「202611」のような年月の名前のシートが見つかりません。体験授業早見表を選んでください")
+    total, unknown_t, unknown_c = 0, set(), set()
+    for title in sorted(titles):
+        rows = []
+        for rec in sheet_import.parse_quickref(book[title], title):
+            tid = _match_name(_norm_name(rec["teacher"]), by_name, set())
+            cid = sheet_import.match_course(rec["course"], courses)
+            if tid is None:
+                unknown_t.add(rec["teacher"])
+            if cid is None:
+                unknown_c.add(rec["course"])
+            if tid and cid:
+                rows.append({"day": rec["day"], "period": rec["period"], "course_id": cid, "teacher_id": tid,
+                             "room_id": rooms.get(sheet_import.norm(rec["room"]).lower())})
+        ym = title.strip()
+        first, last = month_range(f"{ym[:4]}-{ym[4:]}")
+        repo.replace("history", rows, "day >= ? AND day <= ?", [first, last])
+        total += len(rows)
+    notes = []
+    if unknown_t:
+        notes.append(f"講師マスターと照合できない講師名が{len(unknown_t)}件あり、その行は読み飛ばしました")
+    if unknown_c:
+        notes.append("体験授業マスターと照合できない授業名を読み飛ばしました:" + "、".join(sorted(unknown_c)))
+    return total, notes
+
+
 # ---------------------------------------------------------------- 過去の割り当ての取り込み(検証用)
 
 def import_assignments_csv(repo: Repo, month: str, text: str) -> tuple[int, list[str]]:

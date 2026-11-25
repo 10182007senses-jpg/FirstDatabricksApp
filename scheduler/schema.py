@@ -69,6 +69,9 @@ TABLES: dict[str, list[tuple[str, str]]] = {
         ("received_at", "STRING"), ("teacher_name", "STRING"), ("day", "DATE"), ("period", "STRING"),
         ("teacher_email", "STRING"),
     ],
+    # 過去の実際の割り当て(体験授業早見表から取り込む)。案を作るとき「いつもの組み合わせ」を優先するのに使う
+    "history": [("day", "DATE"), ("period", "STRING"), ("course_id", "STRING"), ("teacher_id", "STRING"),
+                ("room_id", "STRING")],
     "sheet_raw": [("sheet_name", "STRING"), ("row_no", "INT"), ("cells_json", "STRING"), ("received_at", "STRING")],
 }
 

@@ -16,8 +16,10 @@ from __future__ import annotations
 import hashlib
 import io
 import re
+import unicodedata
 from dataclasses import dataclass, field
 from datetime import date, datetime
+from difflib import SequenceMatcher
 
 from .models import BACKUP, MAIN
 
@@ -262,3 +264,59 @@ def read_workbook(content: bytes) -> dict[str, list[list]]:
 
 def pick_sheet(book: dict[str, list[list]], name: str) -> list[list] | None:
     return next((rows for title, rows in book.items() if name in title), None)
+
+
+# ---------------------------------------------------------------- 体験授業早見表(過去の実際の割り当て)
+
+def course_key(name) -> str:
+    """授業名の表記揺れをそろえる。副題(～…～)・かっこ書き・記号・「体験」「授業」を落とす。"""
+    t = unicodedata.normalize("NFKC", str(name or "")).lower()
+    t = re.sub(r"[〜~～].*?[〜~～]|[(（<＜].*?[)）>＞]", "", t)
+    return re.sub(r"[^0-9a-zぁ-んァ-ヶ一-龠]", "", t).replace("体験", "").replace("授業", "")
+
+
+def match_course(name, courses: dict[str, str], cutoff: float = 0.8) -> str | None:
+    """早見表の授業名を、マスターの授業(ID -> 名前)に照合する。似ている度合いが cutoff 未満なら None。"""
+    key = course_key(name)
+    if not key or not courses:
+        return None
+    best_id, best = max(((cid, SequenceMatcher(None, course_key(n), key).ratio()) for cid, n in courses.items()),
+                        key=lambda x: x[1])
+    return best_id if best >= cutoff else None
+
+
+def is_quickref_sheet(title: str) -> bool:
+    """早見表のシート名は「202611」のような年月。"""
+    return bool(re.fullmatch(r"\d{6}", title.strip()))
+
+
+def parse_quickref(rows: list[list], sheet_title: str) -> list[dict]:
+    """早見表の1か月分のシートから、通常の体験授業(E〜I列)の割り当てを読む。
+
+    1日は4行のかたまり(B列 日付)。各列に授業が上下2つ:「授業名」の行と「講師名 教室」の行。
+    「※午前のみ」「※午後のみ」がなければ午前と午後の両方。
+    前の月から写したまま残っている日(シートの年月と違う日付)は読まない。
+    返す行: {day, period, course, teacher, room}
+    """
+    ym = sheet_title.strip()
+    out = []
+    for i, row in enumerate(rows):
+        day = cell(row, 1)
+        if isinstance(day, datetime):
+            day = day.date()
+        if not isinstance(day, date) or day.strftime("%Y%m") != ym:
+            continue
+        for col in range(4, 9):  # E〜I
+            for top in (i, i + 2):
+                name = cell(rows[top], col) if top < len(rows) else None
+                who = cell(rows[top + 1], col) if top + 1 < len(rows) else None
+                if not name or not who:
+                    continue
+                text = str(name)
+                periods = ["AM"] if "午前のみ" in text else ["PM"] if "午後のみ" in text else ["AM", "PM"]
+                words = re.split(r"[\s\u3000]+", str(who).strip())
+                teacher, room = ("".join(words[:-1]), words[-1]) if len(words) > 1 else (words[0], "")
+                for p in periods:
+                    out.append({"day": day, "period": p, "course": text.split("※")[0].strip(),
+                                "teacher": teacher, "room": room})
+    return out

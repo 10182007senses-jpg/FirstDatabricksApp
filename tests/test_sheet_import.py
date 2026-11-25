@@ -185,3 +185,40 @@ def test_form_names_with_company_and_kanji_variants(repo):
 def test_myschool_courses_are_not_planned():
     assert not solver.is_regular_course("Myスクール授業 デッサン講座")
     assert solver.is_regular_course("デッサン体験")
+
+
+def quickref_rows(day):
+    """早見表の1日分(4行)。B列 日付、E列から授業。"""
+    return [
+        [None, None, None, None, "イベント名", None, "1日最大2つ"],
+        [None, day, "日", "ゲームお仕事体験W", "ゲーム制作体験", "手描きイラスト体験\n※午前のみ"],
+        [None, None, None, "（午前＋午後)", "青木先生 101", "上田先生　201"],
+        [None, None, None, "集合時間", "ロボット体験 ～キットで作ろう～", None],
+        [None, None, None, None, "小川先生 lab1", None],
+    ]
+
+
+def test_parse_quickref_reads_classes_and_skips_copied_days():
+    from datetime import datetime
+
+    rows = quickref_rows(datetime(2026, 11, 8)) + quickref_rows(datetime(2026, 10, 4))[1:]
+    recs = sheet_import.parse_quickref(rows, "202611")
+    got = {(r["day"].day, r["period"], r["course"], r["teacher"], r["room"]) for r in recs}
+    assert got == {
+        (8, "AM", "ゲーム制作体験", "青木先生", "101"), (8, "PM", "ゲーム制作体験", "青木先生", "101"),
+        (8, "AM", "手描きイラスト体験", "上田先生", "201"),
+        (8, "AM", "ロボット体験 ～キットで作ろう～", "小川先生", "lab1"),
+        (8, "PM", "ロボット体験 ～キットで作ろう～", "小川先生", "lab1"),
+    }  # 10/4 は前の月から写したままの日なので読まない
+
+
+def test_import_history_matches_masters(repo):
+    from datetime import datetime
+
+    manager.import_masters(repo, COURSE_ROWS, ROOM_ROWS)
+    n, notes = manager.import_history_from_book(repo, {"202611": quickref_rows(datetime(2026, 11, 8)), "メモ": []})
+    assert n == 5 and notes == []
+    assert {r["room_id"] for r in repo.read("history")} == {sheet_import.stable_id("r", x) for x in ("101", "201", "lab1")}
+    # 同じ月を取り込み直すと置き換わる
+    n, _ = manager.import_history_from_book(repo, {"202611": quickref_rows(datetime(2026, 11, 8))[:3]})
+    assert len(repo.read("history")) == 3
