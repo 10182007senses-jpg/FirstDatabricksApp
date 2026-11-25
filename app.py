@@ -1154,6 +1154,7 @@ def settings_tab(bundle):
         "割り当ての作り方の設定",
         dmc.Stack(rows, gap=0, maw=640),
         dmc.Group([button("設定を保存", "settings-save", primary=True), reset], gap="xs", mt="md"),
+        danger_zone(bundle),
         hint="なるべく守るルール(Should)どうしがぶつかったときは、重みが大きいほうを優先します。"
              "初期値は仮のものです。先生と相談して決めた値に直してください。",
     )
@@ -1173,6 +1174,43 @@ def save_settings(_, values, ids):
         return alert("「上限」は「目安」以上、かつ1以上にしてください。", "danger"), dash.no_update
     repo.save_settings(s)
     return done("設定を保存しました。次に案を作るときから反映されます。")
+
+
+def danger_zone(bundle):
+    """入れたデータを消す。押すと確認が出て、「OK」を押すまで何も消えない。"""
+    label = f"{int(bundle.month[:4])}年{int(bundle.month[5:])}月"
+    month_btn = dcc.ConfirmDialogProvider(
+        dmc.Button(f"{label}のデータを消す", variant="outline", color="red", size="sm", radius="md"),
+        id="reset-month",
+        message=f"{label}の開催枠・イベント・対応可能日・教室の使用不可・割り当て・連絡文を消します。"
+                "マスター・設定・ほかの月は残ります。消したデータは元に戻せません。よろしいですか?")
+    all_btn = dcc.ConfirmDialogProvider(
+        dmc.Button("すべてのデータを消す", variant="filled", color="red", size="sm", radius="md"),
+        id="reset-all",
+        message="マスター・設定・すべての月の開催枠・割り当て・連絡文・取り込んだ実績を、すべて消します。"
+                "消したデータは元に戻せません。よろしいですか?")
+    return dmc.Paper([
+        dmc.Text("データを消す", fw=600, size="sm", c="red"),
+        dmc.Text("取り込み直してやり直したいときに使います。消す前に「CSVで保存」などで控えを取ってください。",
+                 size="xs", c="dimmed", mb="sm"),
+        dmc.Group([month_btn, all_btn], gap="xs"),
+    ], withBorder=True, radius="md", p="md", mt="xl", maw=640, style={"borderColor": "var(--mantine-color-red-3)"})
+
+
+@app.callback(*NOTICE, Input("reset-month", "submit_n_clicks"), *MONTH_STATE, prevent_initial_call=True)
+@action
+def reset_month(_, year, month):
+    counts = repo.reset_month(month_key(year, month))
+    n = sum(counts.values())
+    return done(f"{int(year)}年{int(month)}月のデータを消しました(開催枠{counts.get('slot', 0)}件・"
+                f"割り当て{counts.get('assignment', 0)}件ほか、合計{n}件)。")
+
+
+@app.callback(*NOTICE, Input("reset-all", "submit_n_clicks"), prevent_initial_call=True)
+@action
+def reset_all(_):
+    repo.reset_all()
+    return done("すべてのデータを消しました。「マスター」で調整共有シートを取り込むところから始めてください。")
 
 
 @app.callback(*NOTICE, Input("settings-reset", "submit_n_clicks"), prevent_initial_call=True)

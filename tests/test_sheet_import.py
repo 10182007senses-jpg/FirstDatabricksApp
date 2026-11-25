@@ -264,3 +264,25 @@ def test_removing_slot_cleans_old_rows(repo):
     assert not any(f.rule == "データ" for f in rules.check_must(after.assignments, after.ctx))
     assert removed["assignment"] == sum(1 for a in b.assignments if a.slot_id == gone.slot_id)
     assert removed["availability"] > 0
+
+
+def test_reset_month_keeps_masters_and_other_months(repo):
+    sample_data.seed_masters(repo, confirmed_on=date(2026, 11, 1))
+    sample_data.seed_month(repo, MONTH)
+    sample_data.seed_month(repo, "2027-01")
+    repo.save_events(MONTH, {D1: "ゲームお仕事体験"})
+    manager.create_plan(repo, MONTH)
+    counts = repo.reset_month(MONTH)
+    assert counts["assignment"] > 0 and counts["slot"] > 0
+    b = repo.load(MONTH)
+    assert not b.ctx.slots and not b.assignments and not b.ctx.availability and not b.ctx.events
+    assert b.adjustment is None
+    assert repo.read("teacher") and repo.load("2027-01").ctx.slots  # マスターと他の月は残る
+
+
+def test_reset_all_empties_every_table(repo):
+    sample_data.seed_masters(repo)
+    sample_data.seed_month(repo, MONTH)
+    repo.reset_all()
+    from scheduler import schema
+    assert all(not repo.read(t) for t in schema.TABLES)

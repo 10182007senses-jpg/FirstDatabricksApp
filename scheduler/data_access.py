@@ -341,6 +341,32 @@ class Repo:
                 out.append(PrevAssignment(day, week_key_of(day), genre))
         return out
 
+    # ------------------------------------------------------------ リセット
+
+    def reset_month(self, month: str) -> dict[str, int]:
+        """その月の開催枠・イベント・対応可能日・教室ブロック・割り当て・連絡文・変更履歴を消す。
+        マスター・設定・過去の実績・フォームの生データ(availability_raw)と、ほかの月は残す。消した件数を返す。"""
+        first, last = month_range(month)
+        counts: dict[str, int] = {}
+        adj = self.get_adjustment(month)
+        if adj:
+            aid = [adj["adjustment_id"]]
+            for t in ("availability", "assignment", "message", "assignment_change", "week_target"):
+                counts[t] = len(self.read(t, "adjustment_id = ?", aid))
+                self.delete(t, "adjustment_id = ?", aid)
+            self.delete("adjustment", "adjustment_id = ?", aid)
+        counts["room_block"] = len(self.read("room_block", "slot_id LIKE ?", [f"{month}-%"]))
+        self.delete("room_block", "slot_id LIKE ?", [f"{month}-%"])
+        for t in ("slot", "event"):
+            counts[t] = len(self.read(t, "day >= ? AND day <= ?", [first, last]))
+            self.delete(t, "day >= ? AND day <= ?", [first, last])
+        return counts
+
+    def reset_all(self) -> None:
+        """すべてのテーブルを空にする(テーブル自体は残す)。"""
+        for t in schema.TABLES:
+            self.delete(t)
+
     def save_slots(self, month: str, picks: list[tuple[date, str]]) -> None:
         first, last = month_range(month)
         rows = [

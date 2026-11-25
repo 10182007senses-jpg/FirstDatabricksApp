@@ -106,6 +106,7 @@ def test_settings_store_only_changes_and_reset(app_module):
     s.w_r5 = 99
     repo.save_settings(s)
     assert [r["setting_key"] for r in repo.read("app_setting")] == ["w_r5"]  # 変えた項目だけ
-    assert "変更済み" in str(app_module.render("settings", "2026", "12", 0)[0])
+    body = str(app_module.render("settings", "2026", "12", 0)[0])
+    assert "変更済み" in body and "2026年12月のデータを消す" in body
     repo.reset_settings()
     assert repo.load_settings() == Settings()
