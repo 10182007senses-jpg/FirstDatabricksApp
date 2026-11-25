@@ -328,6 +328,8 @@ for _input in [
     Input("blocks-table", "data_timestamp"), Input("targets-table", "data_timestamp"),
     Input("plan-table", "data_timestamp"), Input({"type": "master", "name": ALL}, "data_timestamp"),
     Input({"type": "setting", "key": ALL}, "value"),
+    # 行を足しただけでも、保存するまでは変更あり
+    Input("blocks-add", "n_clicks"), Input("plan-add", "n_clicks"), Input({"type": "master-add", "name": ALL}, "n_clicks"),
 ]:
     app.callback(Output("dirty", "data", allow_duplicate=True), _input, prevent_initial_call=True)(_mark_dirty)
 
