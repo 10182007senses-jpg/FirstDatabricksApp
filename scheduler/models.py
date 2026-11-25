@@ -113,8 +113,8 @@ class PrevAssignment:
 class Settings:
     """Should ルールの重みと運用パラメータ。値はすべて【要確認】の初期値。"""
 
-    per_slot_target: int = 2  # 1枠あたりの授業数の目安
-    per_slot_max: int = 3  # 1枠あたりの授業数の上限
+    per_slot_target: int = 6  # 1枠あたりの授業数の目安(2026年11月の早見表は1枠5〜8件)
+    per_slot_max: int = 8  # 1枠あたりの授業数の上限
     w_r5: int = 50  # 同じ系統が2週続けて空かない
     w_r6: int = 20  # 週ごとの打ち出し方の目安
     w_r8: int = 40  # どの講師も月に1回
